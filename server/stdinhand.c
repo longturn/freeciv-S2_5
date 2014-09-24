@@ -4184,7 +4184,7 @@ static bool autocreate_command(struct connection *caller, char *arg, bool check)
 
     if (pplayer == NULL) {
       /* No player created. */
-      cmd_reply(CMD_AUTOCREATE, caller, C_FAIL, "server_create_player() failed: %s", buf);
+      cmd_reply(CMD_AUTOCREATE, caller, C_FAIL, "server_create_player() failed: %s, game in inconsistent state, restart", buf);
       return FALSE;
     }
 
