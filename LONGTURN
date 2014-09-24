@@ -1,4 +1,7 @@
 NOTES
 
 ./autogen.sh --enable-client=gtk2
+
+export AUTHPROG="/home/akfaew/src/freeciv-S2_5/auth.sh"
+
 make -j 9 && ./fcser -p 5555 -r ~/src/games/LTeX25/LTeX25.serv 
