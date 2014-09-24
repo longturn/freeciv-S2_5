@@ -76,12 +76,12 @@ static char *lt_getpwd(char *username, char *pass, int n)
 
   for (i = 0; username[i]; i++) {
     if (!isalnum(username[i])) {
-      log_normal("username \"%s\" contains illegal characters\n", username);
+      log_normal("username \"%s\" contains illegal characters", username);
       return NULL;
     }
   }
   if ((authprog = getenv("AUTHPROG")) == NULL) {
-    log_normal("AUTHPROG not set\n");
+    log_normal("AUTHPROG not set");
     return NULL;
   }
   snprintf(tmp, sizeof(tmp), "%s \"%s\"", authprog, username);
