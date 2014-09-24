@@ -65,6 +65,49 @@ static bool is_guest_name(const char *name);
 static void get_unique_guest_name(char *name);
 static bool is_good_password(const char *password, char *msg);
 
+#include <ctype.h>
+static char *lt_getpwd(char *username, char *pass, int n)
+{
+  int i;
+  char tmp[1024];
+  char *authprog;
+  char *nl;
+  FILE *p;
+
+  for (i = 0; username[i]; i++) {
+    if (!isalnum(username[i])) {
+      log_normal("username \"%s\" contains illegal characters\n", username);
+      return NULL;
+    }
+  }
+  if ((authprog = getenv("AUTHPROG")) == NULL) {
+    log_normal("AUTHPROG not set\n");
+    return NULL;
+  }
+  snprintf(tmp, sizeof(tmp), "%s \"%s\"", authprog, username);
+  p = popen(tmp, "r");
+  fgets(pass, n, p);
+  pclose(p);
+
+  if ((nl = strchr(pass, '\n')) != NULL) {
+    *nl = '\0';
+  }
+
+  return pass;
+}
+
+static enum fcdb_status lt_auth(struct connection *pconn)
+{
+  char pass[MAX_LEN_PASSWORD];
+
+  if (lt_getpwd(pconn->username, pass, sizeof pass) == NULL) {
+    return FCDB_SUCCESS_FALSE;
+  } else {
+    sz_strlcpy(pconn->server.password, pass);
+    return FCDB_SUCCESS_TRUE;
+  }
+}
+
 /****************************************************************************
   Handle authentication of a user; called by handle_login_request() if
   authentication is enabled.
@@ -103,7 +146,8 @@ bool auth_user(struct connection *pconn, char *username)
 
     sz_strlcpy(pconn->username, username);
 
-    switch(script_fcdb_call("user_load", 1, API_TYPE_CONNECTION, pconn)) {
+    /* switch(script_fcdb_call("user_load", 1, API_TYPE_CONNECTION, pconn)) { */
+    switch(lt_auth(pconn)) {
     case FCDB_ERROR:
       if (srvarg.auth_allow_guests) {
         sz_strlcpy(tmpname, pconn->username);
@@ -142,9 +186,9 @@ bool auth_user(struct connection *pconn, char *username)
         pconn->server.status = AS_REQUESTING_NEW_PASS;
       } else {
         reject_new_connection(_("This server allows only preregistered "
-                                "users. Sorry."), pconn);
-        log_normal(_("%s was rejected: Only preregistered users allowed."),
-                   pconn->username);
+                                "users, or illegal username."), pconn);
+        log_normal(_("%s was rejected: Only preregistered users allowed, "
+	             "or illegal username."), pconn->username);
 
         return FALSE;
       }
