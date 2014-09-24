@@ -1081,3 +1081,4 @@ utility/timing.lo
 utility/timing.o
 win32/Makefile
 win32/Makefile.in
+*.sav.bz2
