@@ -1,0 +1,4 @@
+NOTES
+
+./autogen.sh --enable-client=gtk2
+make -j 9 && ./fcser -p 5555 -r ~/src/games/LTeX25/LTeX25.serv 
