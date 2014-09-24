@@ -696,8 +696,15 @@ dependencies/lua-5.2/src/lzio.o
 dependencies/luasql/Makefile
 dependencies/luasql/Makefile.in
 dependencies/luasql/src/.deps/
+dependencies/luasql/src/.libs/
 dependencies/luasql/src/Makefile
 dependencies/luasql/src/Makefile.in
+dependencies/luasql/src/libluasql_base.la
+dependencies/luasql/src/libluasql_sqlite3.la
+dependencies/luasql/src/ls_sqlite3.lo
+dependencies/luasql/src/ls_sqlite3.o
+dependencies/luasql/src/luasql.lo
+dependencies/luasql/src/luasql.o
 dependencies/tolua-5.2/Makefile
 dependencies/tolua-5.2/Makefile.in
 dependencies/tolua-5.2/src/Makefile
