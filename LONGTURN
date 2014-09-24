@@ -1,6 +1,7 @@
 NOTES
 
 ./autogen.sh --enable-client=gtk2
+./autogen.sh --disable-client --disable-nls
 
 export AUTHPROG="/home/akfaew/src/freeciv-S2_5/auth.sh"
 
