@@ -1,0 +1,56 @@
+; Modifying this file:
+; You should not modify this file except to make bugfixes or
+; for other "maintenance".  If you want to make custom changes
+; you should create a new datadir subdirectory and copy this file
+; into that directory, and then modify that copy.  Then use the
+; command "rulesetdir <mysubdir>" in the server to have freeciv
+; use your new customized file.
+
+[datafile]
+description="Alien World nations data for Freeciv"
+options="+Freeciv-2.5-ruleset"
+
+[compatibility]
+; Initial government for all the nations that do not
+; have it explicitly defined
+default_government = "Despotism"
+
+[default_traits]
+;expansionist = 50
+;trader = 50
+;aggressive = 50
+
+; Descriptions of nation sets
+; These are self-contained subsets of the available nations; one of these
+; can be chosen in pregame with the "nationset" option. No nations
+; outside the selected subset will be used.
+; The first set defined is the one that is used by default. It is mandatory
+; to have at least one, but if there is only one, it will be kept out of
+; the user's way.
+; name 		= Translatable name of the set presented in the UI.
+; rule_name     = Unique persistent name; this is also visible to users as
+;                 the value of the "nationset" server option, and presented
+;                 in "/list nationsets". It should thus be short, in lower
+;                 case, and not contain spaces or punctuation.
+;                 The same saved "nationset" setting may be used for multiple
+;                 rulesets, so if your custom ruleset has any set which
+;                 contains all of its nations, it is useful to give it a
+;                 rule_name of "all" so that users can specify that they
+;                 always want the choice of all available nations by
+;                 default.
+; description   = Optional short user description of this set.
+
+[nset_all]
+name=_("All nations")
+rule_name="all"
+
+*include "alien/nation/mathclub.ruleset"
+*include "alien/nation/secretsociety.ruleset"
+*include "alien/nation/kindergarden.ruleset"
+*include "alien/nation/adventurers.ruleset"
+*include "alien/nation/jw.ruleset"
+*include "alien/nation/galacticsound.ruleset"
+*include "alien/nation/teamgladiators.ruleset"
+
+*include "alien/nation/madmen.ruleset"
+*include "alien/nation/lunatics.ruleset"

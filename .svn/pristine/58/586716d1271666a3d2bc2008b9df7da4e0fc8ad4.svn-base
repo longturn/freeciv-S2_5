@@ -1,0 +1,143 @@
+; This is Alien World cities ruleset.
+
+[datafile]
+description="Alien World cities data for Freeciv"
+options="+Freeciv-2.5-ruleset"
+
+; /* <-- avoid gettext warnings
+;
+; A specialist is a city citizen who is not a tile worker.  Usually the
+; player can control what specialist each citizen is, so long as the
+; requirements for that specialist are met.
+;
+; Below are the entries for the specialists, one per specialist type.
+; The tag name (in [specialist_*]) doesn't matter so long as it's unique.
+; For each specialist the following fields may be set:
+;
+; 
+; name          = translatable (plural) name as seen by user
+; rule_name     = (optional) name for savegames, rulesets etc; if not
+;                 present, 'name' is used. Since the name used in savegames
+;                 must not change, this is used when renaming a specialist
+;                 after a ruleset has been released. (The original specialist
+;                 names in the default ruleset were not designed to be
+;                 user-visible.)
+; short_name    = one-character "short name" used (for instance) in cityrep;
+;                 should be first character/abbrevation of "name"
+; graphic_alt   = fallback graphic tag in case the specialist graphic isn't
+;                 found. Example value: "specialist.scientist_0"
+;                 The specialist graphic allow different images based on
+;                 citizen number. The alt tag don't. To use another
+;                 specialist's tag use specialist.<otherrulename>_<number>.
+; reqs		= requirements to have the specialist pick (see
+;		  effects.ruleset and README.effects for help on requirements)
+; helptext      = optional help text string; should escape all raw newlines
+;                 so that xgettext parsing works
+;
+; */ <-- avoid gettext warnings
+
+[specialist_culturists]
+name            = _("Culturists")
+short_name      = _("?Culturists:C")
+graphic_alt     = "specialist.elvis_0"
+reqs            =
+    { "type", "name", "range"
+; No requirements
+    }
+helptext = _("\
+Culturists create works that keep people satisfied. They create two luxury \
+points per turn, four if Specialist Training tech is known.")
+
+[specialist_scientist]
+name		= _("Scientists")
+short_name	= _("?Scientist:S")
+graphic_alt     = "specialist.scientist_0"
+reqs		=
+    { "type", "name", "range"
+; Nothing
+    }
+helptext = _("\
+Scientist reseach two bulbs worth of science each turn, four bulbs \
+when Specialist Training tech is known.")
+
+[specialist_government_merchant]
+name		= _("Government Merchants")
+rule_name       = "Government_Merchants"
+short_name	= _("?Merchant:M")
+graphic_alt     = "specialist.taxman_0"
+reqs		=
+    { "type", "name", "range"
+; Nothing
+    }
+helptext = _("\
+Government Merchants produce two gold for the government each turn, \
+four once Specialist Training tech is known.")
+
+[parameters]
+add_to_size_limit  = 8		; cities >= this cannot be added to.
+angry_citizens = TRUE           ; set to FALSE to disable angry citizens
+celebrate_size_limit = 3        ; cities >= can celebrate
+
+changable_tax = TRUE            ; set to FALSE to disallow changing of tax rates
+
+;forced_science = 0		; set these fields when changeable_tax is turned off
+;forced_luxury = 100
+;forced_gold = 0
+
+vision_reveal_tiles = TRUE      ; civ1 & 2 default FALSE
+
+pop_report_zeroes = 2           ; Population in reports in hundreds
+
+[citizen]
+nationality   = TRUE            ; account for the nationality of the citizens
+convert_speed = 50              ; base probability 50/1000 -> once every 20 turns
+partisans_pct = 0               ; percentage of own nationality to inspire partisans
+                                ; if 0, original city owner information is used instead
+
+; /* <-- avoid gettext warnings
+;
+; City styles define the way cities are drawn
+;
+; name          = translatable name as seen by user
+; rule_name     = (optional) name for savegames, rulesets etc; if not
+;                 present, 'name' is used. Since the name used in savegames
+;                 must not change, use this when renaming a city style after a
+;                 ruleset has been released.
+; graphic     = group of tiles to use, see cities spec for
+;               more info on city tiles
+; oceanic_graphic      = group of tiles to use for oceanic cities. If this
+;                        is omitted, same graphics as for land cities is used
+; citizens_graphic     = group of citizens tiles to use, see citizens/small
+;                        spec for more info on citizens tiles
+; reqs        = requirements for this city style (see README.effects)
+; replaced_by = which style replaced this one
+;
+; */ <-- avoid gettext warnings
+
+[citystyle_human]
+name        = _("?citystyle:Human")
+graphic     = "city.human"
+graphic_alt = "city.classical"
+oceanic_graphic      = "city.ocean"
+oceanic_graphic_alt  = "city.classical"
+citizens_graphic     = "human"
+citizens_graphic_alt = "ancient"
+reqs =
+   { "type", "name", "range"
+; No requirements
+   }
+replaced_by = "Dual"
+
+[citystyle_dual]
+name        = _("?citystyle:Dual")
+graphic     = "city.dual"
+graphic_alt = "city.modern"
+oceanic_graphic      = "city.ocean"
+oceanic_graphic_alt  = "city.modern"
+citizens_graphic     = "dual"
+citizens_graphic_alt = "modern"
+reqs =
+   { "type", "name", "range"
+     "Tech", "Alien Rights", "Player"
+   }
+replaced_by = "-"
