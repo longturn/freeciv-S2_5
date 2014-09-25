@@ -3206,6 +3206,49 @@ static bool is_allowed_to_take(struct player *pplayer, bool will_obs,
   return TRUE;
 }
 
+static bool is_delegated(const char *taker, const char *who)
+{
+  char tmp[1024];
+  char regent[1024];
+  char *delegprog;
+  char *gamename;
+  FILE *p;
+  char *nl;
+
+  /* of course, taking own account back is always permitted */
+  if (strcasecmp(taker, who) == 0) {
+    return true;
+  }
+
+  if ((delegprog = getenv("DELEGPROG")) == NULL) {
+    log_normal("DELEGPROG not set");
+    return false;
+  }
+  if ((gamename = getenv("GAMENAME")) == NULL) {
+    log_normal("GAMENAME not set");
+    return false;
+  }
+  snprintf(tmp, sizeof(tmp), "%s \"%s\" \"%s\"", delegprog, who, gamename);
+  if ((p = popen(tmp, "r")) == NULL) {
+    log_normal("popen() failed");
+    return false;
+  }
+  if (fgets(regent, sizeof regent, p) == NULL) {
+    log_normal("fgets() failed");
+    return false;
+  }
+  pclose(p);
+
+  if ((nl = strchr(regent, '\n')) != NULL) {
+    *nl = '\0';
+  }
+  if (strcasecmp(regent, taker) == 0) {
+    return true;
+  }
+
+  return false;
+}
+
 /**************************************************************************
  Observe another player. If we were already attached, detach 
  (see connection_detach()). The console and those with ALLOW_HACK can
@@ -3273,7 +3316,7 @@ static bool observe_command(struct connection *caller, char *str, bool check)
   /******** PART II: do the observing ********/
 
   /* check allowtake for permission */
-  if (!is_allowed_to_take(pplayer, TRUE, msg, sizeof(msg))) {
+  if (!is_allowed_to_take(pplayer, TRUE, msg, sizeof(msg)) && !is_delegated(pconn->username, pplayer->name)) {
     cmd_reply(CMD_OBSERVE, caller, C_FAIL, "%s", msg);
     goto end;
   }
