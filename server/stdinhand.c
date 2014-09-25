@@ -4157,7 +4157,7 @@ static bool syncturn_command(struct connection *caller, char *arg, bool check)
 
   if (strlen(arg) > 0) {
     sscanf(arg, "%f", &min);
-    if (min < 0.01 || min > 3) {
+    if (min < 0.01 || min > 10) {
       cmd_reply(CMD_SYNCTURN, caller, C_FAIL, _("The value \"%f\" doesn't make much sense"), min);
       return FALSE;
     }
