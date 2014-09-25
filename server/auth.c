@@ -85,8 +85,14 @@ static char *lt_getpwd(char *username, char *pass, int n)
     return NULL;
   }
   snprintf(tmp, sizeof(tmp), "%s \"%s\"", authprog, username);
-  p = popen(tmp, "r");
-  fgets(pass, n, p);
+  if ((p = popen(tmp, "r")) == NULL) {
+    log_normal("popen() failed");
+    return NULL;
+  }
+  if (fgets(pass, n, p) == NULL) {
+    log_normal("fgets() failed");
+    return NULL;
+  }
   pclose(p);
 
   if ((nl = strchr(pass, '\n')) != NULL) {
