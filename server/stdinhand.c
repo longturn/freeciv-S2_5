@@ -3316,7 +3316,7 @@ static bool observe_command(struct connection *caller, char *str, bool check)
   /******** PART II: do the observing ********/
 
   /* check allowtake for permission */
-  if (!is_allowed_to_take(pplayer, TRUE, msg, sizeof(msg)) && !is_delegated(pconn->username, pplayer->name)) {
+  if (!is_allowed_to_take(pplayer, TRUE, msg, sizeof(msg))) {
     cmd_reply(CMD_OBSERVE, caller, C_FAIL, "%s", msg);
     goto end;
   }
@@ -3478,7 +3478,7 @@ static bool take_command(struct connection *caller, char *str, bool check)
   }
 
   /* check allowtake for permission */
-  if (!is_allowed_to_take(pplayer, FALSE, msg, sizeof(msg))) {
+  if (!is_allowed_to_take(pplayer, FALSE, msg, sizeof(msg)) && !is_delegated(pconn->username, pplayer->name)) {
     cmd_reply(CMD_TAKE, caller, C_FAIL, "%s", msg);
     goto end;
   }
@@ -4157,7 +4157,7 @@ static bool syncturn_command(struct connection *caller, char *arg, bool check)
 
   if (strlen(arg) > 0) {
     sscanf(arg, "%f", &min);
-    if (min < 0.01 || min > 3) {
+    if (min < 0.01 || min > 10) {
       cmd_reply(CMD_SYNCTURN, caller, C_FAIL, _("The value \"%f\" doesn't make much sense"), min);
       return FALSE;
     }
