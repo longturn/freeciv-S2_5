@@ -618,7 +618,8 @@ enum server_events server_sniff_all_input(void)
 
     /* if we've waited long enough after a failure, respond to the client */
     conn_list_iterate(game.all_connections, pconn) {
-      if (!pconn->server.is_closing
+      if (srvarg.auth_enabled
+          && !pconn->server.is_closing
           && pconn->server.status != AS_ESTABLISHED) {
         auth_process_status(pconn);
       }
