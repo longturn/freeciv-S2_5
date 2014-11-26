@@ -44,6 +44,13 @@ static bool is_real_activity(enum unit_activity activity);
 
 Activity_type_id real_activities[ACTIVITY_LAST];
 
+struct cargo_iter {
+  struct iterator vtable;
+  const struct unit_list_link *links[GAME_TRANSPORT_MAX_RECURSIVE];
+  int depth;
+};
+#define CARGO_ITER(iter) ((struct cargo_iter *) (iter))
+
 /**************************************************************************
 bribe unit
 investigate
@@ -1997,44 +2004,118 @@ int get_transporter_occupancy(const struct unit *ptrans)
 struct unit *transporter_for_unit(const struct unit *pcargo)
 {
   struct unit_list *tile_units = unit_tile(pcargo)->units;
-  struct unit *best = NULL;
-  bool best_has_orders = FALSE, has_orders;
-  bool best_can_freely_unload = FALSE, can_freely_unload;
-  int best_depth = 0, depth;
+  struct unit *best_trans = NULL;
+  struct {
+    bool has_orders, is_idle, can_freely_unload;
+    int depth, outermost_moves_left, total_moves;
+  } cur, best = { FALSE };
 
   unit_list_iterate(tile_units, ptrans) {
     if (!can_unit_load(pcargo, ptrans)) {
       continue;
+    } else if (best_trans == NULL) {
+      best_trans = ptrans;
     }
 
-    has_orders = unit_has_orders(ptrans);
-    if (!has_orders) {
+    /* Gather data from transport stack in a single pass, for use in
+     * various conditions below. */
+    cur.has_orders = unit_has_orders(ptrans);
+    cur.outermost_moves_left = ptrans->moves_left;
+    cur.total_moves = ptrans->moves_left + unit_move_rate(ptrans);
+    {
       const struct unit *ptranstrans = unit_transport_get(ptrans);
 
       while (NULL != ptranstrans) {
         if (unit_has_orders(ptranstrans)) {
-          has_orders = TRUE;
-          break;
+          cur.has_orders = TRUE;
         }
+        cur.outermost_moves_left = ptranstrans->moves_left;
+        cur.total_moves += ptranstrans->moves_left
+                           + unit_move_rate(ptranstrans);
         ptranstrans = unit_transport_get(ptranstrans);
       }
     }
-    can_freely_unload = utype_can_freely_unload(unit_type(pcargo),
-                                                unit_type(ptrans));
-    depth = unit_transport_depth(ptrans);
 
-    if (NULL == best
-        || (!has_orders && best_has_orders)
-        || (can_freely_unload && !best_can_freely_unload)
-        || depth < best_depth) {
-      best = ptrans;
-      best_has_orders = has_orders;
-      best_can_freely_unload = can_freely_unload;
-      best_depth = depth;
+    /* Criteria for deciding the 'best' transport to load onto.
+     * The following tests are applied in order; earlier ones have
+     * lexicographically greater significance than later ones. */
+
+    /* Transports which have orders, or are on transports with orders,
+     * are less preferable to transport stacks without orders (to
+     * avoid loading on units that are just passing through). */
+    if (best_trans != ptrans) {
+      if (!cur.has_orders && best.has_orders) {
+        best_trans = ptrans;
+      } else if (cur.has_orders && !best.has_orders) {
+        continue;
+      }
     }
+
+    /* Else, transports which are idle are preferable (giving players
+     * some control over loading) -- this does not check transports
+     * of transports. */
+    cur.is_idle = (ptrans->activity == ACTIVITY_IDLE);
+    if (best_trans != ptrans) {
+      if (cur.is_idle && !best.is_idle) {
+        best_trans = ptrans;
+      } else if (!cur.is_idle && best.is_idle) {
+        continue;
+      }
+    }
+
+    /* Else, transports from which the cargo could unload at any time
+     * are preferable to those where the cargo can only disembark in
+     * cities/bases. */
+    cur.can_freely_unload = utype_can_freely_unload(unit_type(pcargo),
+                                                    unit_type(ptrans));
+    if (best_trans != ptrans) {
+      if (cur.can_freely_unload && !best.can_freely_unload) {
+        best_trans = ptrans;
+      } else if (!cur.can_freely_unload && best.can_freely_unload) {
+        continue;
+      }
+    }
+
+    /* Else, transports which are less deeply nested are preferable. */
+    cur.depth = unit_transport_depth(ptrans);
+    if (best_trans != ptrans) {
+      if (cur.depth < best.depth) {
+        best_trans = ptrans;
+      } else if (cur.depth > best.depth) {
+        continue;
+      }
+    }
+
+    /* Else, transport stacks where the outermost transport has more
+     * moves left are preferable (on the assumption that it's the
+     * outermost transport that's about to move). */
+    if (best_trans != ptrans) {
+      if (cur.outermost_moves_left > best.outermost_moves_left) {
+        best_trans = ptrans;
+      } else if (cur.outermost_moves_left < best.outermost_moves_left) {
+        continue;
+      }
+    }
+
+    /* All other things being equal, as a tie-breaker, compare the total
+     * moves left (this turn) and move rate (future turns) for the whole
+     * stack, to take into account total potential movement for both
+     * short and long journeys (we don't know which the cargo intends to
+     * make). Doesn't try to account for whether transports can unload,
+     * etc. */
+    if (best_trans != ptrans) {
+      if (cur.total_moves > best.total_moves) {
+        best_trans = ptrans;
+      } else {
+        continue;
+      }
+    }
+
+    fc_assert(best_trans == ptrans);
+    best = cur;
   } unit_list_iterate_end;
 
-  return best;
+  return best_trans;
 }
 
 /****************************************************************************
@@ -2415,34 +2496,58 @@ struct unit_list *unit_transport_cargo(const struct unit *ptrans)
 }
 
 /****************************************************************************
+  Helper for unit_transport_check().
+****************************************************************************/
+static inline bool
+unit_transport_check_one(const struct unit_type *cargo_utype,
+                         const struct unit_type *trans_utype)
+{
+  return (trans_utype != cargo_utype
+          && !can_unit_type_transport(cargo_utype,
+                                      utype_class(trans_utype)));
+}
+
+/****************************************************************************
   Returns whether 'pcargo' in 'ptrans' is a valid transport. Note that
   'pcargo' can already be (but doesn't need) loaded into 'ptrans'.
 
   It may fail if one of the cargo unit has the same type of one of the
   transporter unit or if one of the cargo unit can transport one of
-  the transporter (recursively).
+  the transporters.
 ****************************************************************************/
 bool unit_transport_check(const struct unit *pcargo,
                           const struct unit *ptrans)
 {
   const struct unit_type *cargo_utype = unit_type(pcargo);
-  const struct unit *plevel;
 
-  /* Check transporters. */
-  for (plevel = ptrans; NULL != plevel;
-       plevel = unit_transport_get(plevel)) {
-    if (unit_type(plevel) == cargo_utype
-        || can_unit_type_transport(cargo_utype, unit_class(plevel))) {
-      return FALSE;
-    }
+  /* Check 'pcargo' against 'ptrans'. */
+  if (!unit_transport_check_one(cargo_utype, unit_type(ptrans))) {
+    return FALSE;
   }
 
-  /* Check cargo units. */
-  unit_list_iterate(unit_transport_cargo(pcargo), pinnercargo) {
-    if (!unit_transport_check(pinnercargo, ptrans)) {
+  /* Check 'pcargo' against 'ptrans' parents. */
+  unit_transports_iterate(ptrans, pparent) {
+    if (!unit_transport_check_one(cargo_utype, unit_type(pparent))) {
       return FALSE;
     }
-  } unit_list_iterate_end;
+  } unit_transports_iterate_end;
+
+  /* Check cargo children... */
+  unit_cargo_iterate(pcargo, pchild) {
+    cargo_utype = unit_type(pchild);
+
+    /* ...against 'ptrans'. */
+    if (!unit_transport_check_one(cargo_utype, unit_type(ptrans))) {
+      return FALSE;
+    }
+
+    /* ...and against 'ptrans' parents. */
+    unit_transports_iterate(ptrans, pparent) {
+      if (!unit_transport_check_one(cargo_utype, unit_type(pparent))) {
+        return FALSE;
+      }
+    } unit_transports_iterate_end;
+  } unit_cargo_iterate_end;
 
   return TRUE;
 }
@@ -2453,29 +2558,29 @@ bool unit_transport_check(const struct unit *pcargo,
 ****************************************************************************/
 bool unit_contained_in(const struct unit *pcargo, const struct unit *ptrans)
 {
-  for (pcargo = unit_transport_get(pcargo);
-       pcargo != NULL; pcargo = unit_transport_get(pcargo)) {
-    if (ptrans == pcargo) {
+  unit_transports_iterate(pcargo, plevel) {
+    if (ptrans == plevel) {
       return TRUE;
     }
-  }
+  } unit_transports_iterate_end;
   return FALSE;
 }
 
 /****************************************************************************
   Returns the number of unit cargo layers within transport 'ptrans'.
-  Recursive function.
 ****************************************************************************/
 int unit_cargo_depth(const struct unit *ptrans)
 {
-  int depth = 0, d;
+  struct cargo_iter iter;
+  struct iterator *it;
+  int depth = 0;
 
-  unit_list_iterate(unit_transport_cargo(ptrans), pcargo) {
-    d = 1 + unit_cargo_depth(pcargo);
-    if (d > depth) {
-      depth = d;
+  for (it = cargo_iter_init(&iter, ptrans); iterator_valid(it);
+       iterator_next(it)) {
+    if (iter.depth > depth) {
+      depth = iter.depth;
     }
-  } unit_list_iterate_end;
+  }
   return depth;
 }
 
@@ -2484,12 +2589,83 @@ int unit_cargo_depth(const struct unit *ptrans)
 ****************************************************************************/
 int unit_transport_depth(const struct unit *pcargo)
 {
-  const struct unit *plevel = unit_transport_get(pcargo);
   int level = 0;
 
-  while (NULL != plevel) {
+  unit_transports_iterate(pcargo, plevel) {
     level++;
-    plevel = unit_transport_get(plevel);
-  }
+  } unit_transports_iterate_end;
   return level;
+}
+
+/****************************************************************************
+  Returns the size of the unit cargo iterator.
+****************************************************************************/
+size_t cargo_iter_sizeof(void)
+{
+  return sizeof(struct cargo_iter);
+}
+
+/****************************************************************************
+  Get the unit of the cargo iterator.
+****************************************************************************/
+static void *cargo_iter_get(const struct iterator *it)
+{
+  const struct cargo_iter *iter = CARGO_ITER(it);
+
+  return unit_list_link_data(iter->links[iter->depth - 1]);
+}
+
+/****************************************************************************
+  Try to find next unit for the cargo iterator.
+****************************************************************************/
+static void cargo_iter_next(struct iterator *it)
+{
+  struct cargo_iter *iter = CARGO_ITER(it);
+  const struct unit_list_link *piter = iter->links[iter->depth - 1];
+  const struct unit_list_link *pnext;
+
+  /* Variant 1: unit has cargo. */
+  pnext = unit_list_head(unit_transport_cargo(unit_list_link_data(piter)));
+  if (NULL != pnext) {
+    fc_assert(iter->depth < ARRAY_SIZE(iter->links));
+    iter->links[iter->depth++] = pnext;
+    return;
+  }
+
+  do {
+    /* Variant 2: there are other cargo units at same level. */
+    pnext = unit_list_link_next(piter);
+    if (NULL != pnext) {
+      iter->links[iter->depth - 1] = pnext;
+      return;
+    }
+
+    /* Variant 3: return to previous level, and do same tests. */
+    piter = iter->links[iter->depth-- - 2];
+  } while (0 < iter->depth);
+}
+
+/****************************************************************************
+  Return whether the iterator is still valid.
+****************************************************************************/
+static bool cargo_iter_valid(const struct iterator *it)
+{
+  return (0 < CARGO_ITER(it)->depth);
+}
+
+/****************************************************************************
+  Initialize the cargo iterator.
+****************************************************************************/
+struct iterator *cargo_iter_init(struct cargo_iter *iter,
+                                 const struct unit *ptrans)
+{
+  struct iterator *it = ITERATOR(iter);
+
+  it->get = cargo_iter_get;
+  it->next = cargo_iter_next;
+  it->valid = cargo_iter_valid;
+  iter->links[0] = unit_list_head(unit_transport_cargo(ptrans));
+  iter->depth = (NULL != iter->links[0] ? 1 : 0);
+
+  return it;
 }

@@ -414,6 +414,10 @@ AC_ARG_WITH([default-ai],
   [default_ai_set="${withval}"],
   [])
 
+AC_ARG_WITH([ai-lib],
+  AS_HELP_STRING([--with-ai-lib], [build in default AI code [if needed]]),
+  [ai_mod_default_needed=yes], [])
+
 AM_CONDITIONAL([AI_MOD_DEFAULT_NEEDED],
 [test  "x${ai_mod_default_needed}" = "xyes" || test "x${default_ai_set}" = "x"])
 
@@ -617,6 +621,8 @@ AC_C99_VARIADIC_MACROS
 AC_C99_VARIABLE_ARRAYS
 AC_C99_INITIALIZERS
 AC_C99_STDINT_H
+
+FC_CXX11_NULLPTR
 
 dnl BeOS-specific settings
 if test x`$UNAME -s` = xBeOS ; then
@@ -1106,7 +1112,7 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([fcntl.h sys/time.h sys/types.h unistd.h sys/utsname.h \
                   sys/file.h libintl.h signal.h strings.h execinfo.h \
-                  libgen.h])
+                  libgen.h locale.h])
 AC_HEADER_STDBOOL
 dnl Avoid including the unix emulation layer if we build mingw executables
 dnl There would be type conflicts between winsock and bsd/unix includes

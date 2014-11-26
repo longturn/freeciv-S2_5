@@ -2872,7 +2872,11 @@ struct pf_path *pf_map_path(struct pf_map *pfm, struct tile *ptile)
     const struct pf_position *pos = &path->positions[0];
 
     fc_assert(path->length >= 1);
-    fc_assert(pos->turn == 0);
+    if (pos->moves_left == 0) {
+      fc_assert(pos->turn == 1);
+    } else {
+      fc_assert(pos->turn == 0);
+    }
     fc_assert(pos->tile == param->start_tile);
     fc_assert(pos->moves_left == param->moves_left_initially);
     fc_assert(pos->fuel_left == param->fuel_left_initially);
@@ -2979,7 +2983,7 @@ static void pf_position_fill_start_tile(struct pf_position *pos,
                                         const struct pf_parameter *param)
 {
   pos->tile = param->start_tile;
-  pos->turn = 0;
+  pos->turn = (param->moves_left_initially == 0 ? 1 : 0);
   pos->moves_left = param->moves_left_initially;
   pos->fuel_left = param->fuel_left_initially;
   pos->total_MC = 0;
@@ -3198,6 +3202,9 @@ struct pf_reverse_map *pf_reverse_map_new(const struct player *pplayer,
   param->start_tile = start_tile;
   param->owner = pplayer;
   param->omniscience = !ai_handicap(pplayer, H_MAP);
+  /* We ignore refuel bases in reverse mode. */
+  param->fuel = 1;
+  param->fuel_left_initially = 1;
   param->data = FC_INT_TO_PTR(max_turns);
 
   /* Initialize the map vector. */
@@ -3265,13 +3272,6 @@ pf_reverse_map_utype_map(struct pf_reverse_map *pfrm,
     param->unit_flags = punittype->flags;
     param->move_rate = punittype->move_rate;
     param->moves_left_initially = punittype->move_rate;
-    if (utype_fuel(punittype)) {
-      param->fuel = utype_fuel(punittype);
-      param->fuel_left_initially = utype_fuel(punittype);
-    } else {
-      param->fuel = 1;
-      param->fuel_left_initially = 1;
-    }
     pfm = pf_map_new(param);
     pfm->params.data =
         FC_INT_TO_PTR(0 <= max_turns && FC_INFINITY > max_turns

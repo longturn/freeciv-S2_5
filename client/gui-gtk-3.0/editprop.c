@@ -31,10 +31,12 @@
 #include "game.h"
 #include "map.h"
 #include "movement.h"
+#include "research.h"
 #include "tile.h"
 
 /* client */
 #include "client_main.h"
+#include "climisc.h"
 #include "editor.h"
 #include "mapview_common.h"
 #include "tilespec.h"
@@ -352,6 +354,7 @@ enum object_property_ids {
   OPID_PLAYER_ADDRESS,
 #endif /* DEBUG */
   OPID_PLAYER_INVENTIONS,
+  OPID_PLAYER_SCIENCE,
   OPID_PLAYER_GOLD,
 
   OPID_GAME_YEAR,
@@ -1735,6 +1738,9 @@ static struct propval *objbind_get_value_from_object(struct objbind *ob,
         } advance_index_iterate_end;
         pv->must_free = TRUE;
         break;
+      case OPID_PLAYER_SCIENCE:
+        pv->data.v_int = player_research_get(pplayer)->bulbs_researched;
+        break;
       case OPID_PLAYER_GOLD:
         pv->data.v_int = pplayer->economic.gold;
         break;
@@ -1932,6 +1938,12 @@ static bool objbind_get_allowed_value_span(struct objbind *ob,
 
   case OBJTYPE_PLAYER:
     switch (propid) {
+    case OPID_PLAYER_SCIENCE:
+      *pmin = 0;
+      *pmax = 1000000; /* Arbitrary. */
+      *pstep = 1;
+      *pbig_step = 100;
+      return TRUE;
     case OPID_PLAYER_GOLD:
       *pmin = 0;
       *pmax = 1000000; /* Arbitrary. */
@@ -2433,6 +2445,9 @@ static void objbind_pack_modified_value(struct objbind *ob,
           packet->inventions[tech] = pv->data.v_inventions[tech];
         } advance_index_iterate_end;
         return;
+      case OPID_PLAYER_SCIENCE:
+        packet->bulbs_researched = pv->data.v_int;
+        return;
       case OPID_PLAYER_GOLD:
         packet->gold = pv->data.v_int;
         return;
@@ -2861,6 +2876,7 @@ static void objprop_setup_widget(struct objprop *op)
 
   case OPID_CITY_SIZE:
   case OPID_CITY_SHIELD_STOCK:
+  case OPID_PLAYER_SCIENCE:
   case OPID_PLAYER_GOLD:
   case OPID_GAME_YEAR:
     spin = gtk_spin_button_new_with_range(0.0, 100.0, 1.0);
@@ -3052,6 +3068,7 @@ static void objprop_refresh_widget(struct objprop *op,
 
   case OPID_CITY_SIZE:
   case OPID_CITY_SHIELD_STOCK:
+  case OPID_PLAYER_SCIENCE:
   case OPID_PLAYER_GOLD:
   case OPID_GAME_YEAR:
     spin = objprop_get_child_widget(op, "spin");
@@ -3712,9 +3729,8 @@ static void extviewer_refresh_widgets(struct extviewer *ev,
     gtk_list_store_set(store, &iter, 0, all, 1, -1, 3,
                        _("All nations"), -1);
     nations_iterate(pnation) {
-      /* The server should have lifted start-position-based restrictions
-       * on pickability before we're invoked. */
-      if (is_nation_pickable(pnation)) {
+      if (client_nation_is_in_current_set(pnation)
+          && is_nation_playable(pnation)) {
         present = (!all && nation_hash_lookup(pv->data.v_nation_hash,
                                               pnation, NULL));
         id = nation_number(pnation);
@@ -3755,27 +3771,35 @@ static void extviewer_refresh_widgets(struct extviewer *ev,
     break;
 
   case OPID_PLAYER_NATION:
-    gtk_list_store_clear(store);
-    nations_iterate(pnation) {
-      if (is_nation_pickable(pnation)) {
-        present = (pnation == pv->data.v_nation);
-        id = nation_index(pnation);
-        pixbuf = get_flag(pnation);
-        name = nation_adjective_translation(pnation);
-        gtk_list_store_append(store, &iter);
-        gtk_list_store_set(store, &iter, 0, present, 1, id,
-                           2, pixbuf, 3, name, -1);
-        if (pixbuf) {
-          g_object_unref(pixbuf);
+    {
+      enum barbarian_type barbarian_type =
+          nation_barbarian_type(pv->data.v_nation);
+
+      gtk_list_store_clear(store);
+      nations_iterate(pnation) {
+        if (client_nation_is_in_current_set(pnation)
+            && nation_barbarian_type(pnation) == barbarian_type
+            && (barbarian_type != NOT_A_BARBARIAN
+                || is_nation_playable(pnation))) {
+          present = (pnation == pv->data.v_nation);
+          id = nation_index(pnation);
+          pixbuf = get_flag(pnation);
+          name = nation_adjective_translation(pnation);
+          gtk_list_store_append(store, &iter);
+          gtk_list_store_set(store, &iter, 0, present, 1, id,
+                             2, pixbuf, 3, name, -1);
+          if (pixbuf) {
+            g_object_unref(pixbuf);
+          }
         }
+      } nations_iterate_end;
+      gtk_label_set_text(GTK_LABEL(ev->panel_label),
+                         nation_adjective_translation(pv->data.v_nation));
+      pixbuf = get_flag(pv->data.v_nation);
+      gtk_image_set_from_pixbuf(GTK_IMAGE(ev->panel_image), pixbuf);
+      if (pixbuf) {
+        g_object_unref(pixbuf);
       }
-    } nations_iterate_end;
-    gtk_label_set_text(GTK_LABEL(ev->panel_label),
-                       nation_adjective_translation(pv->data.v_nation));
-    pixbuf = get_flag(pv->data.v_nation);
-    gtk_image_set_from_pixbuf(GTK_IMAGE(ev->panel_image), pixbuf);
-    if (pixbuf) {
-      g_object_unref(pixbuf);
     }
     break;
 
@@ -4267,6 +4291,8 @@ static void property_page_setup_objprops(struct property_page *pp)
             | OPF_HAS_WIDGET | OPF_EDITABLE, VALTYPE_NATION);
     ADDPROP(OPID_PLAYER_INVENTIONS, _("Inventions"), OPF_IN_LISTVIEW
             | OPF_HAS_WIDGET | OPF_EDITABLE, VALTYPE_INVENTIONS_ARRAY);
+    ADDPROP(OPID_PLAYER_SCIENCE, _("Science"),
+            OPF_HAS_WIDGET | OPF_EDITABLE, VALTYPE_INT);
     ADDPROP(OPID_PLAYER_GOLD, _("Gold"), OPF_IN_LISTVIEW
             | OPF_HAS_WIDGET | OPF_EDITABLE, VALTYPE_INT);
     return;

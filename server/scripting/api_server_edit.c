@@ -281,14 +281,7 @@ Tech_Type *api_edit_give_technology(lua_State *L, Player *pplayer,
     do_free_cost(pplayer, id);
     found_new_tech(pplayer, id, FALSE, TRUE);
     result = advance_by_number(id);
-    players_iterate(aplayer) {
-      if (presearch == player_research_get(aplayer)) {
-        script_server_signal_emit("tech_researched", 3,
-                                  API_TYPE_TECH_TYPE, result,
-                                  API_TYPE_PLAYER, aplayer,
-                                  API_TYPE_STRING, reason);
-      }
-    } players_iterate_end;
+    script_tech_learned(pplayer, result, reason);
     return result;
   } else {
     return NULL;
@@ -367,6 +360,9 @@ void api_edit_tile_set_label(lua_State *L, Tile *ptile, const char *label)
   LUASCRIPT_CHECK_ARG_NIL(L, label, 3, string);
 
   tile_set_label(ptile, label);
+  if (server_state() >= S_S_RUNNING) {
+    send_tile_info(NULL, ptile, FALSE);
+  }
 }
 
 /*****************************************************************************

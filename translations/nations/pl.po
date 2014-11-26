@@ -34,8 +34,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: freeciv\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-07-17 10:08+0100\n"
-"PO-Revision-Date: 2014-07-12 11:37+0100\n"
+"POT-Creation-Date: 2014-11-22 13:51+0000\n"
+"PO-Revision-Date: 2014-11-15 21:05+0100\n"
 "Last-Translator: Hubert Kowalewski <hubkow@gmail.com>\n"
 "Language-Team: none\n"
 "Language: pl\n"
@@ -3029,7 +3029,6 @@ msgid "?plural:Burgunds"
 msgstr "?plural:Burgundowie"
 
 #: data/nation/burgundic.ruleset:6
-#, fuzzy
 msgid ""
 "The Burgundians were an ancient East Germanic people who probably originated "
 "on Bornholm island. After leaving Bornholm they lived between the Oder and "
@@ -3048,7 +3047,7 @@ msgstr ""
 "Ich pierwszym państwem była Wormacja, lecz po najazdach Hunów Burgundowie "
 "przenieśli się na tereny dzisiejszej Sabaudii i Burgundii, gdzie założyli "
 "kolejne państwo. Ostatecznie zostali podporządkowani Królestwu Franków. "
-"Burgundowie dali nazwę późniejszemu narodowi romańskienu i regionowi "
+"Burgundowie dali nazwę późniejszemu narodowi romańskiemu i regionowi "
 "Burgundii."
 
 #. TRANS: The last letter in "Burkinabe" should be
@@ -6771,7 +6770,6 @@ msgid "?plural:Italian Greeks"
 msgstr "?plural:Italogrecy"
 
 #: data/nation/italiangreek.ruleset:6
-#, fuzzy
 msgid ""
 "Ancient Magna Graecia was a complex of Greek cities-colonies on the coasts "
 "of Italy and Sicily, founded during the Greek Colonization. They played an "

@@ -761,6 +761,19 @@ static int granary_savings(const struct city *pcity)
 }
 
 /**************************************************************************
+  Reset the foodbox, usually when a city grows or shrinks.
+  By default it is reset to zero, but this can be increased by Growth_Food
+  effects.
+  Usually this should be called before the city changes size.
+**************************************************************************/
+static void city_reset_foodbox(struct city *pcity, int new_size)
+{
+  fc_assert_ret(pcity != NULL);
+  pcity->food_stock = (city_granary_size(new_size)
+                       * granary_savings(pcity)) / 100;
+}
+
+/**************************************************************************
   Increase city size by one. We do not refresh borders or send info about
   the city to the clients as part of this function. There might be several
   calls to this function at once, and those actions are needed only once.
@@ -895,12 +908,21 @@ bool city_change_size(struct city *pcity, citizens size,
 static void city_populate(struct city *pcity, struct player *nationality)
 {
   int saved_id = pcity->id;
+  int granary_size = city_granary_size(city_size_get(pcity));
 
   pcity->food_stock += pcity->surplus[O_FOOD];
-  if (pcity->food_stock >= city_granary_size(city_size_get(pcity)) 
-     || city_rapture_grow(pcity)) {
-    city_increase_size(pcity, nationality);
-    map_claim_border(pcity->tile, pcity->owner);
+  if (pcity->food_stock >= granary_size || city_rapture_grow(pcity)) {
+    if (city_had_recent_plague(pcity)) {
+      notify_player(city_owner(pcity), city_tile(pcity),
+                    E_CITY_PLAGUE, ftc_server,
+                    _("A recent plague outbreak prevents growth in %s."),
+                    city_link(pcity));
+      /* Lose excess food */
+      pcity->food_stock = MIN(pcity->food_stock, granary_size);
+    } else {
+      city_increase_size(pcity, nationality);
+      map_claim_border(pcity->tile, pcity->owner);
+    }
   } else if (pcity->food_stock < 0) {
     /* FIXME: should this depend on units with ability to build
      * cities or on units that require food in upkeep?
@@ -921,8 +943,7 @@ static void city_populate(struct city *pcity, struct player *nationality)
         wipe_unit(punit, ULR_STARVED, NULL);
 
         if (city_exist(saved_id)) {
-          pcity->food_stock = (city_granary_size(city_size_get(pcity))
-                               * granary_savings(pcity)) / 100;
+          city_reset_foodbox(pcity, city_size_get(pcity));
         }
 	return;
       }
@@ -938,8 +959,7 @@ static void city_populate(struct city *pcity, struct player *nationality)
 		    _("Famine destroys %s entirely."),
 		    city_link(pcity));
     }
-    pcity->food_stock = (city_granary_size(city_size_get(pcity) - 1)
-			 * granary_savings(pcity)) / 100;
+    city_reset_foodbox(pcity, city_size_get(pcity) - 1);
     city_reduce_size(pcity, 1, NULL);
   }
 }

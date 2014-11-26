@@ -293,41 +293,57 @@ bool player_invention_reachable(const struct player *pplayer,
                                 const Tech_type_id tech,
                                 bool allow_prereqs)
 {
-  Tech_type_id root;
-
-  if (!valid_advance_by_number(tech)) {
+  if (valid_advance_by_number(tech) == NULL) {
     return FALSE;
-  }
+  } else if (advance_required(tech, AR_ROOT) != A_NONE) {
+    /* 'tech' has at least one root requirement. We need to check them
+     * all. */
+    bv_techs done;
+    Tech_type_id techs[game.control.num_tech_types];
+    Tech_type_id root;
+    enum tech_req req;
+    int techs_num;
+    int i;
 
-  root = advance_required(tech, AR_ROOT);
-  if (A_NONE != root) {
-    if (root == tech) {
-      /* This tech requires itself; it can only be reached by special means
-       * (init_techs, lua script, ...).
-       * If you already know it, you can "reach" it; if not, not. (This case
-       * is needed for descendants of this tech.) */
-      return TECH_KNOWN == player_invention_state(pplayer, tech);
-    } else if (allow_prereqs) {
-      /* Recursive check if the player can ever reach this tech (root tech
-       * and both requirements). */
-      return (player_invention_reachable(pplayer, root, TRUE)
-              && player_invention_reachable(pplayer,
-                                            advance_required(tech, AR_ONE),
-                                            allow_prereqs)
-              && player_invention_reachable(pplayer,
-                                            advance_required(tech, AR_TWO),
-                                            allow_prereqs));
-    } else if (TECH_KNOWN != player_invention_state(pplayer, root)
-               || !player_invention_reachable(pplayer,
-                                              advance_required(tech, AR_ONE),
-                                              allow_prereqs)
-               || !player_invention_reachable(pplayer,
-                                              advance_required(tech, AR_TWO),
-                                              allow_prereqs)) {
-      /* This tech requires knowledge of another tech (root tech or recursive
-       * a root tech of a requirement) before being available. Prevents
-       * sharing of untransferable techs. */
-      return FALSE;
+    techs[0] = tech;
+    BV_CLR_ALL(done);
+    BV_SET(done, A_NONE);
+    BV_SET(done, tech);
+    techs_num = 1;
+
+    for (i = 0; i < techs_num; i++) {
+      root = advance_required(techs[i], AR_ROOT);
+      if (root == techs[i]) {
+        /* This tech requires itself; it can only be reached by special
+         * means (init_techs, lua script, ...).
+         * If you already know it, you can "reach" it; if not, not. (This
+         * case is needed for descendants of this tech.) */
+        if (player_invention_state(pplayer, root) != TECH_KNOWN) {
+          return FALSE;
+        }
+      } else if (!allow_prereqs
+                 && player_invention_state(pplayer, root) != TECH_KNOWN) {
+        /* This tech requires knowledge of another tech (root tech) before
+         * being available. Prevents sharing of untransferable techs. */
+        return FALSE;
+      } else {
+        /* Check if requirements are reachable. */
+        Tech_type_id req_tech;
+
+        for (req = 0; req < (allow_prereqs ? AR_SIZE : AR_ROOT); req++) {
+          req_tech = advance_required(techs[i], req);
+          if (!valid_advance_by_number(req_tech)) {
+            return FALSE;
+          } else if (!BV_ISSET(done, req_tech)) {
+            if (advance_required(req_tech, AR_ROOT) != A_NONE) {
+              fc_assert(techs_num < ARRAY_SIZE(techs));
+              techs[techs_num] = req_tech;
+              techs_num++;
+            }
+            BV_SET(done, req_tech);
+          }
+        }
+      }
     }
   }
 
@@ -450,7 +466,7 @@ int player_tech_upkeep(const struct player *pplayer)
     break;
   case 1:
   case 3:
-    advance_index_iterate(A_NONE, i) {
+    advance_index_iterate(A_FIRST, i) {
       if (TECH_KNOWN == player_invention_state(pplayer, i)) {
         tech_upkeep += techcoststyle1[i];
       }
@@ -464,7 +480,7 @@ int player_tech_upkeep(const struct player *pplayer)
     break;
   case 2:
   case 4:
-    advance_index_iterate(A_NONE, i) {
+    advance_index_iterate(A_FIRST, i) {
       if (TECH_KNOWN == player_invention_state(pplayer, i)) {
         if (advances[i].preset_cost != -1) {
           tech_upkeep += advances[i].preset_cost;
@@ -523,7 +539,7 @@ Tech_type_id player_research_step(const struct player *pplayer,
 {
   Tech_type_id sub_goal;
 
-  if (!player_invention_reachable(pplayer, goal, FALSE)) {
+  if (!player_invention_reachable(pplayer, goal, TRUE)) {
     return A_UNSET;
   }
   switch (player_invention_state(pplayer, goal)) {

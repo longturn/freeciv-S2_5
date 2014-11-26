@@ -1308,7 +1308,7 @@ restart:
           /* HACK: If we just changed the root_tech of a lower-numbered
            * technology, we need to go back so that we can propagate the
            * root_tech up to that technology's parents... */
-          goto restart;   
+          goto restart;
         }
       }
     } advance_iterate_end;
