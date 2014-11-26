@@ -14,10 +14,39 @@ description="Civ2 effects data for Freeciv (incomplete)"
 options="+Freeciv-2.5-ruleset"
 
 ; /* <-- avoid gettext warnings
+;
+; Effects
+;
+; type                    = What the effect does. Values of multiple active effects
+;                           of the same type get summed for the total.
+;                           See README.effects for list of possible types
+; value                   = Value added for the effect type when this effect is active,
+;                           i.e., all requirements are fulfilled
+; reqs                    = Requirements for the effect to be active.
+;                           See README.effects for help on requirements
+;
 ; */ <-- avoid gettext warnings
 
 ; Cheating AI effects are in separate file
 *include "default/ai_effects.ruleset"
+
+; Barbarian effects
+
+[effect_barbarian_diplomacy]
+type    = "No_Diplomacy"
+value   = 1
+reqs    =
+    { "type",   "name", "range"
+      "Nation", "Barbarian", "Player"
+    }
+
+[effect_pirate_diplomacy]
+type    = "No_Diplomacy"
+value   = 1
+reqs    =
+    { "type",   "name", "range"
+      "Nation", "Pirate", "Player"
+    }
 
 [effect_barbarian_waste]
 type    = "Output_Waste_Pct"
@@ -1909,6 +1938,7 @@ nreqs   =
     { "type", "name", "range"
       "UnitFlag", "NonMil", "Local"
       "UnitFlag", "NoVeteran", "Local"
+      "Building", "Port Facility", "City"
     }
 
 [effect_magellans_expedition]

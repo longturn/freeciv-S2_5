@@ -7,7 +7,7 @@
 MAJOR_VERSION="2"
 MINOR_VERSION="5"
 PATCH_VERSION="0"
-VERSION_LABEL="-beta1+"
+VERSION_LABEL="-beta2+"
 
 # 1) Development until MAJOR and MINOR version numbers are
 #    set to new release series:
@@ -39,7 +39,7 @@ IS_BETA_VERSION=1
 NEXT_STABLE_VERSION="2.5.0"
 
 # 0 to disable display of release month until we can make better estimate
-RELEASE_MONTH=0
+RELEASE_MONTH=2
 
 DATASUBDIR=2.5
 DEFAULT_FOLLOW_TAG=S2_5

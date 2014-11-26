@@ -55,8 +55,10 @@ EXTRA_DIST=	autogen.sh 			\
 		bootstrap/config.rpath		\
 		bootstrap/Makerules.mk		\
 		bootstrap/langnames.txt		\
+		bootstrap/mkinstalldirs		\
 		m4/ac_path_lib.m4		\
 		m4/c99.m4			\
+		m4/c++11.m4			\
 		m4/codeset.m4			\
 		m4/compiler.m4			\
 		m4/debug.m4			\
@@ -99,7 +101,8 @@ EXTRA_DIST=	autogen.sh 			\
 		m4/xaw-client.m4		\
 		m4/x.m4				\
 		scripts/mapimg2anim		\
-		scripts/setup_auth_server.sh
+		scripts/setup_auth_server.sh	\
+		NEWS-2.5
 
 noinst_HEADERS= fc_version
 
@@ -109,7 +112,8 @@ docs =			\
 	ChangeLog	\
 	COPYING		\
 	INSTALL		\
-	NEWS
+	NEWS		\
+	NEWS-2.5
 
 doc_DATA = $(docs)
 

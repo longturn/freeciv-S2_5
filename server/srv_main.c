@@ -1454,7 +1454,7 @@ void identity_number_release(int id)
 }
 
 /**************************************************************************
-  Marko identity number allocated.
+  Mark identity number allocated.
 **************************************************************************/
 void identity_number_reserve(int id)
 {
@@ -2659,9 +2659,6 @@ static void srv_ready(void)
   /* start the game */
   set_server_state(S_S_RUNNING);
   (void) send_server_info_to_metaserver(META_INFO);
-
-  /* Need to resend this as is_pickable changes on entry to S_S_RUNNING */
-  send_nation_availability(game.est_connections, FALSE);
 
   if (game.info.is_new_game) {
     /* If we're starting a new game, reset the max_players to be at

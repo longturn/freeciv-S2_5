@@ -880,6 +880,62 @@ void popup_revolution_dialog(struct government *government)
   }
 }
 
+/**************************************************************************
+  Constructor for choice_dialog_button_data
+**************************************************************************/
+choice_dialog_button_data::choice_dialog_button_data(QPushButton *button,
+                                                     pfcn_void func,
+                                                     QVariant data1,
+                                                     QVariant  data2)
+{
+  this->button = button;
+  this->func = func;
+  this->data1 = data1;
+  this->data2 = data2;
+}
+
+/**************************************************************************
+  Destructor for choice_dialog_button_data
+**************************************************************************/
+choice_dialog_button_data::~choice_dialog_button_data()
+{
+  /* Don't delete the stored data! */
+}
+
+/**************************************************************************
+  Get the button it self.
+**************************************************************************/
+QPushButton *choice_dialog_button_data::getButton()
+{
+  return button;
+}
+
+/**************************************************************************
+  Get the function to call when the button is pressed.
+**************************************************************************/
+pfcn_void choice_dialog_button_data::getFunc()
+{
+  return func;
+}
+
+/**************************************************************************
+  Get the first piece of data to feed the function when the button is
+  pressed.
+**************************************************************************/
+QVariant choice_dialog_button_data::getData1()
+{
+  return data1;
+}
+
+/**************************************************************************
+  Get the second piece of data to feed the function when the button is
+  pressed.
+**************************************************************************/
+QVariant choice_dialog_button_data::getData2()
+{
+  return data2;
+}
+
 /***************************************************************************
   Constructor for choice_dialog
 ***************************************************************************/
@@ -966,6 +1022,67 @@ void choice_dialog::execute_action(const int action)
   pfcn_void func = func_list.at(action);
   func(data1_list.at(action), data2_list.at(action));
   close();
+}
+
+/**************************************************************************
+  Put the button in the stack and temporarily remove it. When
+  unstack_all_buttons() is called all buttons in the stack will be added
+  to the end of the dialog.
+
+  Can be used to place a button below existing buttons or below buttons
+  added while it was in the stack.
+**************************************************************************/
+void choice_dialog::stack_button(const int button_number)
+{
+  choice_dialog_button_data *data = NULL;
+
+  fc_assert_msg(0 <= button_number, "Invalid button number");
+  if (0 > button_number) {
+    return;
+  }
+
+  /* Start with grabbing the data. */
+  data = new choice_dialog_button_data(
+      qobject_cast<QPushButton *>(layout
+                                  ->itemAt(button_number + 1)
+                                  ->widget()),
+      func_list.at(button_number),
+      data1_list.at(button_number), data2_list.at(button_number));
+
+  /* Store the data in the stack. */
+  last_buttons_stack.append(data);
+
+  /* Temporary remove the button so it will end up below buttons added
+   * before unstack_all_buttons() is called. */
+  layout->removeWidget(data->getButton());
+
+  /* The old mappings may not be valid after reinsertion. */
+  signal_mapper->removeMappings(data->getButton());
+
+  /* Synchronize the lists with the layout. */
+  func_list.removeAt(button_number);
+  data1_list.removeAt(button_number);
+  data2_list.removeAt(button_number);
+}
+
+/**************************************************************************
+  Put all the buttons in the stack back to the dialog. They will appear
+  after any other buttons. See stack_button()
+**************************************************************************/
+void choice_dialog::unstack_all_buttons()
+{
+  while (!last_buttons_stack.isEmpty()) {
+    choice_dialog_button_data *data = last_buttons_stack.takeLast();
+
+    /* Restore mapping. */
+    signal_mapper->setMapping(data->getButton(), func_list.count());
+
+    /* Reinsert the button below the other buttons. */
+    func_list.append(data->getFunc());
+    data1_list.append(data->getData1());
+    data2_list.append(data->getData2());
+    layout->addWidget(data->getButton());
+  }
 }
 
 /***************************************************************************
@@ -1807,21 +1924,30 @@ void caravan_dialog_update(void)
   QString str;
   QVariant qv1, qv2;
   pfcn_void func;
+  bool can_wonder;
+  bool wonder_button_not_found;
   int i;
+  int kmbn;
   QVBoxLayout *layout;
   QPushButton *qpb;
 
   if (caravan_dialog == NULL) {
     return;
   }
+
   destcity = game_city_by_number(caravan_city_id);
   caravan = game_unit_by_number(caravan_unit_id);
+  can_wonder = destcity && caravan
+               && unit_can_help_build_wonder(caravan, destcity);
+
+  wonder_button_not_found = TRUE;
   i = 0;
+  kmbn = -1;
   layout = caravan_dialog->get_layout();
   foreach (func, caravan_dialog->func_list) {
     if (func == caravan_help_build) {
-      if (destcity && caravan
-          && unit_can_help_build_wonder(caravan, destcity)) {
+      wonder_button_not_found = FALSE;
+      if (can_wonder) {
         fc_snprintf(buf2, sizeof(buf2),
                   _("Help build Wonder (%d remaining)"),
                   impr_build_shield_cost(destcity->production.value.building)
@@ -1830,10 +1956,37 @@ void caravan_dialog_update(void)
       } else {
         wonder = QString(_("Help build Wonder"));
       }
+
       qpb = qobject_cast<QPushButton *>(layout->itemAt(i + 1)->widget());
       qpb->setText(wonder);
+      qpb->setEnabled(can_wonder);
+    } else if (func == caravan_keep_moving) {
+      /* Store the number of the Keep moving button for later insert. */
+      kmbn = i;
     }
     i++;
+  }
+
+  if (can_wonder && wonder_button_not_found) {
+    QString title;
+
+    if (0 <= kmbn) {
+      /* Temporary remove the Keep moving button so it won't end up above
+       * the Help build Wonder button. */
+      caravan_dialog->stack_button(kmbn);
+    }
+
+    title = QString(_("Help build Wonder (%1 remaining)")).arg(
+          impr_build_shield_cost(destcity->production.value.building)
+          - destcity->shield_stock);
+    caravan_dialog->add_item(title, caravan_help_build,
+                             destcity->id, caravan->id);
+
+    if (0 <= kmbn) {
+      /* Reinsert the "Keep moving" button below the
+       * Help build Wonder button. */
+      caravan_dialog->unstack_all_buttons();
+    }
   }
 }
 

@@ -398,6 +398,7 @@ void handle_diplomacy_accept_treaty_req(struct player *pplayer,
       struct player_diplstate *ds_destgiver
         = player_diplstate_get(pdest, pgiver);
       enum diplstate_type old_diplstate = ds_giverdest->type;
+      struct unit_list *pgiver_seen_units, *pdest_seen_units;
 
       switch (pclause->type) {
       case CLAUSE_EMBASSY:
@@ -431,16 +432,8 @@ void handle_diplomacy_accept_treaty_req(struct player *pplayer,
                            nation_plural_for_player(pdest),
                            advance_name_for_player(pdest, pclause->value),
                            nation_plural_for_player(pgiver));
-
-          players_iterate(aplayer) {
-            if (player_research_get(pdest) == player_research_get(aplayer)) {
-              script_server_signal_emit("tech_researched", 3,
-                                        API_TYPE_TECH_TYPE,
-                                        advance_by_number(pclause->value),
-                                        API_TYPE_PLAYER, aplayer,
-                                        API_TYPE_STRING, "traded");
-            }
-          } players_iterate_end;
+          script_tech_learned(pdest, advance_by_number(pclause->value),
+                              "traded");
           do_dipl_cost(pdest, pclause->value);
           found_new_tech(pdest, pclause->value, FALSE, TRUE);
         }
@@ -497,6 +490,10 @@ void handle_diplomacy_accept_treaty_req(struct player *pplayer,
 	  break;
 	}
       case CLAUSE_CEASEFIRE:
+        if (old_diplstate == DS_ALLIANCE) {
+          pgiver_seen_units = get_seen_units(pgiver, pdest);
+          pdest_seen_units = get_seen_units(pdest, pgiver);
+        }
         ds_giverdest->type = DS_CEASEFIRE;
         ds_giverdest->turns_left = TURNS_LEFT;
         ds_destgiver->type = DS_CEASEFIRE;
@@ -507,13 +504,21 @@ void handle_diplomacy_accept_treaty_req(struct player *pplayer,
         notify_player(pdest, NULL, E_TREATY_CEASEFIRE, ftc_server,
                       _("You agree on a cease-fire with %s."),
                       player_name(pgiver));
-	if (old_diplstate == DS_ALLIANCE) {
-	  update_players_after_alliance_breakup(pgiver, pdest);
-	}
+        if (old_diplstate == DS_ALLIANCE) {
+          update_players_after_alliance_breakup(pgiver, pdest,
+                                                pgiver_seen_units,
+                                                pdest_seen_units);
+          unit_list_destroy(pgiver_seen_units);
+          unit_list_destroy(pdest_seen_units);
+        }
 
         worker_refresh_required = TRUE;
 	break;
       case CLAUSE_PEACE:
+        if (old_diplstate == DS_ALLIANCE) {
+          pgiver_seen_units = get_seen_units(pgiver, pdest);
+          pdest_seen_units = get_seen_units(pdest, pgiver);
+        }
         ds_giverdest->type = DS_ARMISTICE;
         ds_destgiver->type = DS_ARMISTICE;
         ds_giverdest->turns_left = TURNS_LEFT;
@@ -544,9 +549,13 @@ void handle_diplomacy_accept_treaty_req(struct player *pplayer,
                       nation_plural_for_player(pgiver),
                       TURNS_LEFT,
                       nation_adjective_for_player(pgiver));
-	if (old_diplstate == DS_ALLIANCE) {
-	  update_players_after_alliance_breakup(pgiver, pdest);
-	}
+        if (old_diplstate == DS_ALLIANCE) {
+          update_players_after_alliance_breakup(pgiver, pdest,
+                                                pgiver_seen_units,
+                                                pdest_seen_units);
+          unit_list_destroy(pgiver_seen_units);
+          unit_list_destroy(pdest_seen_units);
+        }
 
         worker_refresh_required = TRUE;
 	break;
@@ -561,6 +570,8 @@ void handle_diplomacy_accept_treaty_req(struct player *pplayer,
         notify_player(pdest, NULL, E_TREATY_ALLIANCE, ftc_server,
                       _("You agree on an alliance with %s."),
                       player_name(pgiver));
+        give_allied_visibility(pgiver, pdest);
+        give_allied_visibility(pdest, pgiver);
 
         worker_refresh_required = TRUE;
 	break;

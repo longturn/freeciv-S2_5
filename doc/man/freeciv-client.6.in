@@ -11,14 +11,15 @@
 .\"
 .TH FREECIV 6 "December 10th 2011"
 .SH NAME
-freeciv-gtk2, freeciv-gtk3, freeciv-sdl, freeciv-xaw \
+freeciv-gtk2, freeciv-gtk3, freeciv-sdl, freeciv-qt, freeciv-xaw \
 \- The clients for the Freeciv game
 .SH SYNOPSIS
-.B freeciv-gtk2|freeciv-gtk3|freeciv-sdl|freeciv-xaw \
+.B freeciv-gtk2|freeciv-gtk3|freeciv-sdl|freeciv-qt|freeciv-xaw \
 [ \-A|\-\-Announce \fIprotocol\fP ] \
 [ \-a|\-\-autoconnect ] \
 [ \-d|\-\-debug \fIlevel_number\fP ] \
 [ \-F|\-\-Fatal [ \fIsignal_number\fP ] ] \
+[ \-f|\-\-file \fIfilename\fP ] \
 [ \-h|\-\-help ] \
 [ \-l|\-\-log \fIfilename\fP ] \
 [ \-M|\-\-Meta \fIURL\fP ] \
@@ -69,8 +70,9 @@ This is the client program used to connect to a Freeciv server - see also
 spawn their own local server for single-player games.
 
 This manual page only lists the command line arguments. For more details
-about using \fBfreeciv-gtk2\fP, \fBfreeciv-gtk3\fP, \fBfreeciv-sdl\fP, or
-\fBfreeciv-xaw\fP, see the Client Manual which can be found at
+about using \fBfreeciv-gtk2\fP, \fBfreeciv-gtk3\fP, \fBfreeciv-sdl\fP,
+\fBfreeciv-qt\fP, or \fBfreeciv-xaw\fP, see the Client Manual which
+can be found at
 .UR @WIKI_URL@
 the Freeciv website
 .UE
@@ -113,6 +115,10 @@ option. Acceptable values for the \fIlevel_number\fP are:
 .BI "\-F [ \fIsignal_number\fP ], \-\-Fatal [ \fIsignal_number\fP ]"
 Raise a custom signal on failed assertion.  If \fIsignal_number\fP is not
 specified, then the ABRT signal will be used.
+.TP
+.BI "\-f \fIfilename\fP, \-\-file \fIfilename\fP"
+Loads a saved game file (\fIfilename\fP). This is for reloading previously
+saved games, or for starting scenarios from the command line.
 .TP
 .BI "\-h, \-\-help"
 Prints a short summary of the standard command line options.
@@ -242,13 +248,19 @@ constraints between clients and server.
 Sets the compression level for network traffic.
 .TP
 .BI FREECIV_DATA_ENCODING
-Sets the data encoding (used for data files, savegames, and network strings).
+Sets the character encoding used for data files, savegames, and network
+strings). This should not normally be changed from the default of UTF-8,
+since that is the format of the supplied rulesets and the standard
+network protocol.
 .TP
 .BI FREECIV_INTERNAL_ENCODING
-Sets the internal encoding (used for GUI strings).
+Sets the character encoding used internally by the \fBfreeciv\fP client.
+This generally needs to match the GUI toolkit, so its default depends
+on the specific client; most clients default to UTF-8.
 .TP
 .BI FREECIV_LOCAL_ENCODING
-Sets the local encoding (used for terminal output).
+Sets the local character encoding (used for the command line and terminal
+output). The default is inferred from other aspects of the environment.
 .TP 
 .BI FREECIV_MULTICAST_GROUP
 Sets the multicast group (for the LAN tab).

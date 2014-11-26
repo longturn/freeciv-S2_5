@@ -14,6 +14,17 @@ description="Civ2Civ3 effects data for Freeciv"
 options="+Freeciv-2.5-ruleset"
 
 ; /* <-- avoid gettext warnings
+;
+; Effects
+;
+; type                    = What the effect does. Values of multiple active effects
+;                           of the same type get summed for the total.
+;                           See README.effects for list of possible types
+; value                   = Value added for the effect type when this effect is active,
+;                           i.e., all requirements are fulfilled
+; reqs                    = Requirements for the effect to be active.
+;                           See README.effects for help on requirements
+;
 ; */ <-- avoid gettext warnings
 
 ; Lower chance of AI wars
@@ -2673,6 +2684,25 @@ value   = 1
 reqs    =
     { "type", "name", "range"
       "Building", "Sewer System", "City"
+      "Building", "Aqueduct", "City"
+    }
+
+[effect_sewer_system_1]
+type    = "Size_Unlimit"
+value   = 1
+reqs    =
+    { "type", "name", "range"
+      "Building", "Sewer System", "City"
+      "Building", "Aqueduct, Lake", "City"
+    }
+
+[effect_sewer_system_2]
+type    = "Size_Unlimit"
+value   = 1
+reqs    =
+    { "type", "name", "range"
+      "Building", "Sewer System", "City"
+      "Building", "Aqueduct, River", "City"
     }
 
 [effect_sewer_system_health]
@@ -3004,8 +3034,8 @@ reqs    =
       "Building", "Eiffel Tower", "Player"
     }
 nreqs   =
-    { "type", "name", "range"
-      "Building", "Apollo Program", "World"
+    { "type", "name", "range", "survives"
+      "Building", "Apollo Program", "World", TRUE
     }
 
 [effect_eiffel_tower_1]
@@ -3213,6 +3243,7 @@ nreqs   =
     { "type", "name", "range"
       "UnitFlag", "NonMil", "Local"
       "UnitFlag", "NoVeteran", "Local"
+      "Building", "Port Facility", "City"
     }
 
 [effect_lighthouse_trireme_move]
@@ -3256,6 +3287,7 @@ nreqs   =
     { "type", "name", "range"
       "UnitFlag", "NonMil", "Local"
       "UnitFlag", "NoVeteran", "Local"
+      "Building", "Port Facility", "City"
     }
 
 [effect_magellans_expedition_move]
@@ -3501,14 +3533,14 @@ nreqs   =
 type    = "Has_Senate"
 value   = 1
 reqs    =
-    { "type", "name", "range"
-      "Building", "United Nations", "World"
-      "Building", "Manhattan Project", "World"
-      "Tech", "Nuclear Fission", "Player"
+    { "type", "name", "range", "survives"
+      "Building", "United Nations", "World", FALSE
+      "Building", "Manhattan Project", "World", TRUE
+      "Tech", "Nuclear Fission", "Player", FALSE
     }
 nreqs   =
-    { "type", "name", "range"
-      "Building", "Apollo Program", "World"
+    { "type", "name", "range", "survives"
+      "Building", "Apollo Program", "World", TRUE
     }
 
 [effect_united_nations_1]
@@ -3527,8 +3559,8 @@ reqs    =
       "Building", "United Nations", "Player"
     }
 nreqs   =
-    { "type", "name", "range"
-      "Building", "Apollo Program", "World"
+    { "type", "name", "range", "survives"
+      "Building", "Apollo Program", "World", TRUE
     }
 
 [effect_womens_suffrage]

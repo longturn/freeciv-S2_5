@@ -1249,11 +1249,27 @@ void handle_edit_player(struct connection *pc,
                     "not in the current nationset."),
                   player_number(pplayer), player_name(pplayer),
                   packet->nation, nation_plural_translation(pnation));
+    } else if (pplayer->ai_common.barbarian_type
+               != nation_barbarian_type(pnation)
+               || (!is_barbarian(pplayer) && !is_nation_playable(pnation))) {
+      notify_conn(pc->self, NULL, E_BAD_COMMAND, ftc_editor,
+                  _("Cannot change nation for player %d (%s) "
+                    "to nation %d (%s) because that nation is "
+                    "unsuitable for this player."),
+                  player_number(pplayer), player_name(pplayer),
+                  packet->nation, nation_plural_translation(pnation));
     } else {
       changed = player_set_nation(pplayer, pnation);
     }
   }
 
+  /* Handle a change in research progress. */
+  if (packet->bulbs_researched != research->bulbs_researched) {
+    research->bulbs_researched = packet->bulbs_researched;
+    changed = TRUE;
+    update_research = TRUE;
+  }
+  
   /* Handle a change in known inventions. */
   /* FIXME: Modifies struct player_research directly. */
   advance_index_iterate(A_FIRST, tech) {
@@ -1273,7 +1289,7 @@ void handle_edit_player(struct connection *pc,
     changed = TRUE;
     update_research = TRUE;
   } advance_index_iterate_end;
-  
+
   /* Handle a change in the player's gold. */
   if (packet->gold != pplayer->economic.gold) {
     if (!(0 <= packet->gold && packet->gold <= 1000000)) {

@@ -975,11 +975,33 @@ bool transfer_city(struct player *ptaker, struct city *pcity,
   const citizens old_giver_content_citizens = player_content_citizens(pgiver);
   bool taker_had_no_cities = (city_list_size(ptaker->cities) == 0);
   bool new_roads, new_bases;
+  const int units_num = unit_list_size(pcenter->units);
+  bv_player *could_see_unit = (units_num > 0
+                               ? fc_malloc(sizeof(*could_see_unit)
+                                           * units_num)
+                               : NULL);
+  int i;
 
   fc_assert_ret_val(pgiver != ptaker, TRUE);
 
+  /* Remember what player see what unit. */
+  i = 0;
+  unit_list_iterate(pcenter->units, aunit) {
+    BV_CLR_ALL(could_see_unit[i]);
+    players_iterate(aplayer) {
+      if (can_player_see_unit(aplayer, aunit)) {
+        BV_SET(could_see_unit[i], player_index(aplayer));
+      }
+    } players_iterate_end;
+    i++;
+  } unit_list_iterate_end;
+  fc_assert(i == units_num);
+
   /* Remove AI control of the old owner. */
   CALL_PLR_AI_FUNC(city_lost, pcity->owner, pcity->owner, pcity);
+
+  /* Forget old tasks */
+  worker_task_init(&pcity->server.task_req);
 
   /* Activate AI control of the new owner. */
   CALL_PLR_AI_FUNC(city_got, ptaker, ptaker, pcity);
@@ -1045,6 +1067,29 @@ bool transfer_city(struct player *ptaker, struct city *pcity,
   pcity->owner = ptaker;
   map_claim_ownership(pcenter, ptaker, pcenter);
   city_list_prepend(ptaker->cities, pcity);
+
+  /* Hide/reveal units. Do it after vision have been given to taker, city
+   * owner has been changed, and before any script could be spawned. */
+  i = 0;
+  unit_list_iterate(pcenter->units, aunit) {
+    players_iterate(aplayer) {
+      if (can_player_see_unit(aplayer, aunit)) {
+        if (!BV_ISSET(could_see_unit[i], player_index(aplayer))) {
+          /* Reveal 'aunit'. */
+          send_unit_info(aplayer->connections, aunit);
+        }
+      } else {
+        if (BV_ISSET(could_see_unit[i], player_index(aplayer))) {
+          /* Hide 'aunit'. */
+          unit_goes_out_of_sight(aplayer, aunit);
+        }
+      }
+    } players_iterate_end;
+    i++;
+  } unit_list_iterate_end;
+  fc_assert(i == units_num);
+  free(could_see_unit);
+  could_see_unit = NULL;
 
   transfer_city_units(ptaker, pgiver, old_city_units,
 		      pcity, NULL,
@@ -1637,7 +1682,7 @@ dbv_free(&tile_processed);
     }
     unit_list_iterate(pcenter->units, punit) {
       if (can_player_see_unit(other_player, punit)) {
-        send_unit_info(other_player, punit);
+        send_unit_info(other_player->connections, punit);
       }
     } unit_list_iterate_end;
   } players_iterate_end;
@@ -1720,7 +1765,6 @@ void unit_enter_city(struct unit *punit, struct city *pcity, bool passenger)
   int coins;
   struct player *pplayer = unit_owner(punit);
   struct player *cplayer = city_owner(pcity);
-  bv_player saw_entering;
 
   /* If not at war, may peacefully enter city. Or, if we cannot occupy
    * the city, this unit entering will not trigger the effects below. */
@@ -1736,15 +1780,6 @@ void unit_enter_city(struct unit *punit, struct city *pcity, bool passenger)
      - Kris Bubendorfer
      Also check spaceships --dwp
   */
-
-  /* Store information who saw unit entering city.
-   * This means old owner + allies + shared vision */
-  BV_CLR_ALL(saw_entering);
-  players_iterate(pplayer) {
-    if (map_is_known_and_seen(pcity->tile, pplayer, V_MAIN)) {
-      BV_SET(saw_entering, player_index(pplayer));
-    }
-  } players_iterate_end;
 
   if (is_capital(pcity)
       && (cplayer->spaceship.state == SSHIP_STARTED
@@ -1858,22 +1893,6 @@ void unit_enter_city(struct unit *punit, struct city *pcity, bool passenger)
    * free buildings such as palaces? */
   city_remains = transfer_city(pplayer, pcity, 0, TRUE, TRUE, TRUE,
                                !is_barbarian(pplayer));
-
-  if (city_remains) {
-    /* After city has been transferred, some players may no longer see
-     * inside. */
-    players_iterate(pplayer) {
-      if (BV_ISSET(saw_entering, player_index(pplayer))
-          && !can_player_see_unit(pplayer, punit)) {
-        /* Player saw unit entering, but now unit is hiding inside city */
-        unit_goes_out_of_sight(pplayer, punit);
-      } else if (!BV_ISSET(saw_entering, player_index(pplayer))
-                 && can_player_see_unit(pplayer, punit)) {
-        /* Player sees inside cities of new owner */
-        send_unit_info(pplayer, punit);
-      }
-    } players_iterate_end;
-  }
 
   if (city_remains) {
     /* reduce size should not destroy this city */
@@ -2488,19 +2507,18 @@ void remove_trade_route(struct city *pc1, struct city *pc2,
   }
 }
 
-/**************************************************************************
-  Remove/cancel the city's least valuable trade route.
-**************************************************************************/
-static void remove_smallest_trade_route(struct city *pcity)
+/****************************************************************************
+  Remove/cancel the city's least valuable trade routes.
+****************************************************************************/
+static void remove_smallest_trade_routes(struct city *pcity)
 {
-  int slot;
+  struct city_list *remove = city_list_new();
 
-  if (get_city_min_trade_route(pcity, &slot) <= 0) {
-    return;
-  }
-
-  remove_trade_route(pcity, game_city_by_number(pcity->trade[slot]),
-                     TRUE, FALSE);
+  (void) city_trade_removable(pcity, remove);
+  city_list_iterate(remove, pother_city) {
+    remove_trade_route(pcity, pother_city, TRUE, FALSE);
+  } city_list_iterate_end;
+  city_list_destroy(remove);
 }
 
 /**************************************************************************
@@ -2511,12 +2529,12 @@ void establish_trade_route(struct city *pc1, struct city *pc2)
 {
   int i;
 
-  if (city_num_trade_routes(pc1) == max_trade_routes(pc1)) {
-    remove_smallest_trade_route(pc1);
+  if (city_num_trade_routes(pc1) >= max_trade_routes(pc1)) {
+    remove_smallest_trade_routes(pc1);
   }
 
-  if (city_num_trade_routes(pc2) == max_trade_routes(pc2)) {
-    remove_smallest_trade_route(pc2);
+  if (city_num_trade_routes(pc2) >= max_trade_routes(pc2)) {
+    remove_smallest_trade_routes(pc2);
   }
 
   for (i = 0; i < MAX_TRADE_ROUTES; i++) {
@@ -2525,12 +2543,14 @@ void establish_trade_route(struct city *pc1, struct city *pc2)
       break;
     }
   }
+  fc_assert(i < MAX_TRADE_ROUTES);
   for (i = 0; i < MAX_TRADE_ROUTES; i++) {
     if (pc2->trade[i] == 0) {
       pc2->trade[i] = pc1->id;
       break;
     }
   }
+  fc_assert(i < MAX_TRADE_ROUTES);
 
   /* recalculate illness due to trade */
   if (game.info.illness_on) {
@@ -2647,8 +2667,8 @@ void city_units_upkeep(const struct city *pcity)
     } output_type_iterate_end;
 
     if (update) {
-      /* update unit information to the player */
-      send_unit_info(plr, punit);
+      /* Update unit information to the player and global observers. */
+      send_unit_info(NULL, punit);
     }
   } unit_list_iterate_end;
 }

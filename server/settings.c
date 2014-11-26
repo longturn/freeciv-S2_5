@@ -1595,11 +1595,12 @@ static struct setting settings[] = {
 
   GEN_INT("aqueductloss", game.server.aqueductloss,
 	  SSET_RULES, SSET_ECONOMICS, SSET_RARE, SSET_TO_CLIENT,
-	  N_("Percentage food lost when building needed"),
-	  N_("If a city would expand, but it can't because it needs "
-	     "an Aqueduct (or Sewer System), it loses this percentage "
-	     "of its foodbox (or half that amount when it has a "
-             "Granary)."), NULL, NULL,
+          N_("Percentage food lost when city can't grow"),
+          N_("If a city would expand, but it can't because it lacks some "
+             "prerequisite (traditionally an Aqueduct or Sewer System), "
+             "this is the base percentage of its foodbox that is lost "
+             "each turn; the penalty may be reduced by buildings or other "
+             "circumstances, depending on the ruleset."), NULL, NULL,
 	  GAME_MIN_AQUEDUCTLOSS, GAME_MAX_AQUEDUCTLOSS, 
 	  GAME_DEFAULT_AQUEDUCTLOSS)
 
@@ -2212,17 +2213,16 @@ static struct setting settings[] = {
 
   GEN_INT("unitwaittime", game.server.unitwaittime,
           SSET_RULES_FLEXIBLE, SSET_INTERNAL, SSET_VITAL, SSET_TO_CLIENT,
-          N_("Time between unit moves over turn change"),
+          N_("Time between unit actions over turn change"),
           /* TRANS: The string between single quotes is a setting name and
            * should not be translated. */
           N_("This setting gives the minimum amount of time in seconds "
-             "between unit moves after a turn change occurs. For "
-             "example, if this setting is set to 20 and a unit moves "
-             "5 seconds before the turn change, it will not be able "
-             "to move in the next turn for at least 15 seconds. Building "
-             "cities is also affected by this setting, as well as units "
-             "moving inside a transporter. This value is limited to "
-             "a maximum value of 2/3 'timeout'."),
+             "between unit moves and other significant actions (such as "
+             "building cities) after a turn change occurs. For example, "
+             "if this setting is set to 20 and a unit moves 5 seconds "
+             "before the turn change, it will not be able to move or act "
+             "in the next turn for at least 15 seconds. This value is "
+             "limited to a maximum value of 2/3 'timeout'."),
           unitwaittime_callback, NULL, GAME_MIN_UNITWAITTIME,
           GAME_MAX_UNITWAITTIME, GAME_DEFAULT_UNITWAITTIME)
 
