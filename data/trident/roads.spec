@@ -117,3 +117,59 @@ tiles = { "row", "column", "tag"
   3, 17, "road.rail_c_se"
 
 }
+
+[grid_maglev]
+
+x_top_left = 0
+y_top_left = 180
+dx = 30
+dy = 30
+
+tiles = { "row", "column", "tag"
+
+  0,  0, "road.maglev_isolated"
+
+; Cardinal maglevs, connections north, south, east, west:
+
+  0,  1, "road.maglev_c_n1e0s0w0"
+  0,  2, "road.maglev_c_n0e1s0w0"
+  0,  3, "road.maglev_c_n1e1s0w0"
+  0,  4, "road.maglev_c_n0e0s1w0"
+  0,  5, "road.maglev_c_n1e0s1w0"
+  0,  6, "road.maglev_c_n0e1s1w0"
+  0,  7, "road.maglev_c_n1e1s1w0"
+  0,  8, "road.maglev_c_n0e0s0w1"
+  0,  9, "road.maglev_c_n1e0s0w1"
+  0, 10, "road.maglev_c_n0e1s0w1"
+  0, 11, "road.maglev_c_n1e1s0w1"
+  0, 12, "road.maglev_c_n0e0s1w1"
+  0, 13, "road.maglev_c_n1e0s1w1"
+  0, 14, "road.maglev_c_n0e1s1w1"
+  0, 15, "road.maglev_c_n1e1s1w1"
+
+; Diagonal maglevs, connections same, rotated 45 degrees clockwise:
+
+  1,  1, "road.maglev_d_ne1se0sw0nw0"
+  1,  2, "road.maglev_d_ne0se1sw0nw0"
+  1,  3, "road.maglev_d_ne1se1sw0nw0"
+  1,  4, "road.maglev_d_ne0se0sw1nw0"
+  1,  5, "road.maglev_d_ne1se0sw1nw0"
+  1,  6, "road.maglev_d_ne0se1sw1nw0"
+  1,  7, "road.maglev_d_ne1se1sw1nw0"
+  1,  8, "road.maglev_d_ne0se0sw0nw1"
+  1,  9, "road.maglev_d_ne1se0sw0nw1"
+  1, 10, "road.maglev_d_ne0se1sw0nw1"
+  1, 11, "road.maglev_d_ne1se1sw0nw1"
+  1, 12, "road.maglev_d_ne0se0sw1nw1"
+  1, 13, "road.maglev_d_ne1se0sw1nw1"
+  1, 14, "road.maglev_d_ne0se1sw1nw1"
+  1, 15, "road.maglev_d_ne1se1sw1nw1"
+
+; maglev corners
+
+  0, 16, "road.maglev_c_nw"
+  0, 17, "road.maglev_c_ne"
+  1, 16, "road.maglev_c_sw"
+  1, 17, "road.maglev_c_se"
+
+}
