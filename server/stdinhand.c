@@ -202,7 +202,7 @@ static bool player_name_check(const char* name, char *buf, size_t buflen)
 /**************************************************************************
   Convert a named command into an id.
   If accept_ambiguity is true, return the first command in the
-  enum list which matches, else return CMD_AMBIGOUS on ambiguity.
+  enum list which matches, else return CMD_AMBIGUOUS on ambiguity.
   (This is a trick to allow ambiguity to be handled in a flexible way
   without importing notify_player() messages inside this routine - rp)
 **************************************************************************/
@@ -840,6 +840,7 @@ static bool create_command(struct connection *caller, const char *str,
   } else {
     cmd_reply(CMD_CREATE, caller, C_SYNTAX,
               _("Wrong number of arguments to create command."));
+    free_tokens(arg, ntokens);
     return FALSE;
   }
 
@@ -850,6 +851,8 @@ static bool create_command(struct connection *caller, const char *str,
     status = create_command_pregame(arg[0], ai_type_name, check,
                                     NULL, buf, sizeof(buf));
   }
+
+  free_tokens(arg, ntokens);
 
   if (status != C_OK) {
     /* No player created. */
@@ -989,7 +992,7 @@ enum rfc_status create_command_newcomer(const char *name,
   }
 
   /* We have a player; now initialise all needed data. */
-  aifill(game.info.aifill);
+  (void) aifill(game.info.aifill);
 
   /* Initialise player. */
   server_player_init(pplayer, TRUE, TRUE);
@@ -1124,7 +1127,7 @@ enum rfc_status create_command_pregame(const char *name,
   CALL_PLR_AI_FUNC(gained_control, pplayer, pplayer);
   send_player_info_c(pplayer, game.est_connections);
 
-  aifill(game.info.aifill);
+  (void) aifill(game.info.aifill);
   reset_all_start_commands();
   (void) send_server_info_to_metaserver(META_INFO);
 
@@ -1167,7 +1170,7 @@ static bool remove_player_command(struct connection *caller, char *arg,
     cmd_reply(CMD_REMOVE, caller, C_OK,
 	      _("Removed player %s from the game."), name);
   }
-  aifill(game.info.aifill);
+  (void) aifill(game.info.aifill);
   return TRUE;
 }
 
@@ -1735,6 +1738,7 @@ static void show_help_option(struct connection *caller,
 {
   char val_buf[256], def_buf[256];
   struct setting *pset = setting_by_number(id);
+  const char *sethelp;
 
   if (setting_short_help(pset)) {
     cmd_reply(help_cmd, caller, C_COMMENT,
@@ -1747,8 +1751,9 @@ static void show_help_option(struct connection *caller,
               _("Option: %s"), setting_name(pset));
   }
 
-  if (strlen(setting_extra_help(pset)) > 0) {
-    char *help = fc_strdup(_(setting_extra_help(pset)));
+  sethelp = setting_extra_help(pset, FALSE);
+  if (strlen(sethelp) > 0) {
+    char *help = fc_strdup(sethelp);
 
     fc_break_lines(help, LINE_BREAK);
     cmd_reply(help_cmd, caller, C_COMMENT, _("Description:"));
@@ -3639,7 +3644,9 @@ static bool detach_command(struct connection *caller, char *str, bool check)
 
   check_for_full_turn_done();
 
-  end:;
+  end:
+  fc_assert_ret_val(ntokens <= 1, FALSE);
+
   /* free our args */
   for (i = 0; i < ntokens; i++) {
     free(arg[i]);
@@ -3700,7 +3707,7 @@ bool load_command(struct connection *caller, const char *filename, bool check)
       get_save_dirs(), get_scenario_dirs(), NULL
     };
     const char *exts[] = {
-      "sav", "gz", "bz2", "sav.gz", "sav.bz2", NULL
+      "sav", "gz", "bz2", "xz", "sav.gz", "sav.bz2", "sav.xz", NULL
     };
     const char **ext, *found = NULL;
     const struct strvec **path;
@@ -3809,7 +3816,7 @@ bool load_command(struct connection *caller, const char *filename, bool check)
   } conn_list_iterate_end;
   conn_list_destroy(global_observers);
 
-  aifill(game.info.aifill);
+  (void) aifill(game.info.aifill);
   return TRUE;
 }
 
@@ -5162,7 +5169,7 @@ static bool delegate_command(struct connection *caller, char *arg,
 
     /* Forbid delegation to player's original owner
      * (from above test we know that dplayer->username is the original now) */
-    if (strcmp(dplayer->username, username) == 0) {
+    if (fc_strcasecmp(dplayer->username, username) == 0) {
       if (player_specified) {
         /* Probably admin or console. */
         cmd_reply(CMD_DELEGATE, caller, C_FAIL,
@@ -5292,7 +5299,7 @@ static bool delegate_command(struct connection *caller, char *arg,
     }
 
     if (!player_delegation_get(dplayer)
-        || strcmp(player_delegation_get(dplayer), caller->username) != 0) {
+        || fc_strcasecmp(player_delegation_get(dplayer), caller->username) != 0) {
       cmd_reply(CMD_DELEGATE, caller, C_FAIL,
                 _("Control of player '%s' has not been delegated to you."),
                 player_name(dplayer));
@@ -5494,8 +5501,9 @@ static bool mapimg_command(struct connection *caller, char *arg, bool check)
                   _("Can't use definition: %s."), mapimg_error());
         ret = FALSE;
       } else {
-        int id = mapimg_count() - 1;
         char str[MAX_LEN_MAPDEF];
+
+        id = mapimg_count() - 1;
 
         mapimg_id2str(id, str, sizeof(str));
         cmd_reply(CMD_MAPIMG, caller, C_OK, _("Defined as map image "
@@ -5516,8 +5524,8 @@ static bool mapimg_command(struct connection *caller, char *arg, bool check)
         goto cleanup;
       }
 
-      for (id = 0; id < mapimg_count(); id++) {
-        mapimg_delete(id);
+      while (mapimg_count() > 0) {
+        mapimg_delete(0);
       }
       cmd_reply(CMD_MAPIMG, caller, C_OK, _("All map image definitions "
                                             "deleted."));

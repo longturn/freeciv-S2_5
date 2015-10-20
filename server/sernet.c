@@ -245,6 +245,7 @@ void close_connections_and_socket(void)
   for (i = 0; i < listen_count; i++) {
     fc_closesocket(listen_socks[i]);
   }
+  FC_FREE(listen_socks);
 
   if (srvarg.announce != ANNOUNCE_NONE) {
     fc_closesocket(socklan);
@@ -254,6 +255,9 @@ void close_connections_and_socket(void)
   if (history_file) {
     write_history(history_file);
     history_truncate_file(history_file, HISTORY_LENGTH);
+    free(history_file);
+    history_file = NULL;
+    clear_history();
   }
 #endif
 
@@ -681,7 +685,7 @@ enum server_events server_sniff_all_input(void)
       /* timeout */
       call_ai_refresh();
       (void) send_server_info_to_metaserver(META_REFRESH);
-      if (game.info.timeout > 0
+      if (current_turn_timeout() > 0
 	  && S_S_RUNNING == server_state()
 	  && game.server.phase_timer
 	  && (timer_read_seconds(game.server.phase_timer)
@@ -874,7 +878,7 @@ enum server_events server_sniff_all_input(void)
 
   call_ai_refresh();
 
-  if (game.info.timeout > 0
+  if (current_turn_timeout() > 0
       && S_S_RUNNING == server_state()
       && game.server.phase_timer
       && (timer_read_seconds(game.server.phase_timer)
@@ -1063,7 +1067,11 @@ int server_open_socket(void)
 {
   /* setup socket address */
   union fc_sockaddr addr;
+#ifdef HAVE_IP_MREQN
+  struct ip_mreqn mreq4;
+#else
   struct ip_mreq mreq4;
+#endif
   const char *cause, *group;
   int j, on, s;
   int lan_family;
@@ -1239,7 +1247,7 @@ int server_open_socket(void)
   if (addr.saddr.sa_family == AF_INET) {
 #ifdef HAVE_INET_ATON
     inet_aton(group, &mreq4.imr_multiaddr);
-#else  /* HEVE_INET_ATON */
+#else  /* HAVE_INET_ATON */
     mreq4.imr_multiaddr.s_addr = inet_addr(group);
 #endif /* HAVE_INET_ATON */
 #else  /* IPv6 support */
@@ -1254,7 +1262,12 @@ int server_open_socket(void)
   } else if (addr.saddr.sa_family == AF_INET) {
     inet_pton(AF_INET, group, &mreq4.imr_multiaddr.s_addr);
 #endif /* IPv6 support */
+#ifdef HAVE_IP_MREQN
+    mreq4.imr_address.s_addr = htonl(INADDR_ANY);
+    mreq4.imr_ifindex = 0;
+#else
     mreq4.imr_interface.s_addr = htonl(INADDR_ANY);
+#endif
 
     if (setsockopt(socklan, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                    (const char*)&mreq4, sizeof(mreq4)) < 0) {
@@ -1496,7 +1509,9 @@ static void send_lanserver_response(void)
   }
 
   /* Create a description of server state to send to clients.  */
-  if (fc_gethostname(hostname, sizeof(hostname)) != 0) {
+  if (srvarg.identity_name[0] != '\0') {
+    sz_strlcpy(hostname, srvarg.identity_name);
+  } else if (fc_gethostname(hostname, sizeof(hostname)) != 0) {
     sz_strlcpy(hostname, "none");
   }
 
