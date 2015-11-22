@@ -781,6 +781,8 @@ server/advisors/advgoto.lo
 server/advisors/advgoto.o
 server/advisors/advruleset.lo
 server/advisors/advruleset.o
+server/advisors/advspace.lo
+server/advisors/advspace.o
 server/advisors/advtools.lo
 server/advisors/advtools.o
 server/advisors/autoexplorer.lo
