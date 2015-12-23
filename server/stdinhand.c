@@ -4225,7 +4225,7 @@ static bool autocreate_command(struct connection *caller, char *arg, bool check)
     sz_strlcpy(pplayer->username, conf_player);
     pplayer->was_created = TRUE; /* must use /remove explicitly to remove */
     pplayer->ai_controlled = FALSE;
-    pplayer->ai = ai_type_by_name("default");
+    pplayer->ai = ai_type_by_name(default_ai_type_name());
 
     if (strlen(buf) > 0) {
       /* Send a notification. */
