@@ -75,7 +75,7 @@ static char *lt_getpwd(char *username, char *pass, int n)
   FILE *p;
 
   for (i = 0; username[i]; i++) {
-    if (!isalnum(username[i])) {
+    if (!(isalnum(username[i]) || username[i] == '_')) {
       log_normal("username \"%s\" contains illegal characters", username);
       return NULL;
     }
