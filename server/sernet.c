@@ -56,7 +56,14 @@
 #include <unistd.h>
 #endif
 #ifdef HAVE_WINSOCK
+#ifdef HAVE_WINSOCK2
+#include <winsock2.h>
+#else  /* HAVE_WINSOCK2 */
 #include <winsock.h>
+#endif /* HAVE_WINSOCK2 */
+#endif /* HAVE_WINSOCK */
+#ifdef HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>
 #endif
 
 /* utility */
@@ -300,7 +307,7 @@ static void really_close_connections(void)
       lost_connection_to_client(pconn);
       close_connection(pconn);
     }
-  } while (0 < num); /* May some errors occured, let's check. */
+  } while (0 < num); /* May some errors occurred, let's check. */
 }
 
 /****************************************************************************
@@ -1078,6 +1085,7 @@ int server_open_socket(void)
   struct fc_sockaddr_list *list;
   int name_count;
   fc_errno eno = 0;
+  union fc_sockaddr *problematic = NULL;
 
 #ifdef IPV6_SUPPORT
   struct ipv6_mreq mreq6;
@@ -1099,7 +1107,7 @@ int server_open_socket(void)
     exit(EXIT_FAILURE);
   }
 
-  cause = NULL;
+  cause = "internal"; /* If cause is not overwritten but gets printed... */
   on = 1;
 
   /* Loop to create sockets, bind, listen. */
@@ -1114,6 +1122,7 @@ int server_open_socket(void)
        * Kernel might have disabled AF_INET6. */
       eno = fc_get_errno();
       cause = "socket";
+      problematic = paddr;
       continue;
     }
 
@@ -1123,7 +1132,7 @@ int server_open_socket(void)
                    (char *)&on, sizeof(on)) == -1) {
       log_error("setsockopt SO_REUSEADDR failed: %s",
                 fc_strerror(fc_get_errno()));
-      sockaddr_debug(paddr);
+      sockaddr_debug(paddr, LOG_DEBUG);
     }
 #endif /* HAVE_WINSOCK */
 
@@ -1136,7 +1145,7 @@ int server_open_socket(void)
                      (char *)&on, sizeof(on)) == -1) {
         log_error("setsockopt IPV6_V6ONLY failed: %s",
                   fc_strerror(fc_get_errno()));
-        sockaddr_debug(paddr);
+        sockaddr_debug(paddr, LOG_DEBUG);
       }
 #endif /* IPV6_V6ONLY */
     }
@@ -1145,6 +1154,7 @@ int server_open_socket(void)
     if (bind(s, &paddr->saddr, sockaddr_size(paddr)) == -1) {
       eno = fc_get_errno();
       cause = "bind";
+      problematic = paddr;
 
       if (eno == EADDRNOTAVAIL) {
         /* Close only this socket. This address is not available.
@@ -1170,17 +1180,21 @@ int server_open_socket(void)
     if (listen(s, MAX_NUM_CONNECTIONS) == -1) {
       eno = fc_get_errno();
       cause = "listen";
+      problematic = paddr;
       fc_closesocket(s);
       continue;
     }
-    listen_socks[listen_count] = s;
-    listen_count++;
+
+    listen_socks[listen_count++] = s;
   } fc_sockaddr_list_iterate_end;
 
   if (listen_count == 0) {
-    log_fatal("%s failed: %s", cause, fc_strerror(eno));
+    log_fatal("%s failure: %s (%d failed)", cause, fc_strerror(eno), name_count);
+    if (problematic != NULL) {
+      sockaddr_debug(problematic, LOG_NORMAL);
+    }
     fc_sockaddr_list_iterate(list, paddr) {
-      sockaddr_debug(paddr);
+      sockaddr_debug(paddr, LOG_DEBUG);
     } fc_sockaddr_list_iterate_end;
     exit(EXIT_FAILURE);
   }
@@ -1204,7 +1218,7 @@ int server_open_socket(void)
 
   /* Create socket for server LAN announcements */
   if ((socklan = socket(lan_family, SOCK_DGRAM, 0)) < 0) {
-    log_error("socket failed: %s", fc_strerror(fc_get_errno()));
+    log_error("Announcement socket failed: %s", fc_strerror(fc_get_errno()));
     return 0; /* FIXME: Should this cause hard error as exit(EXIT_FAILURE).
                *        It's failure to do as commandline parameters requested after all */
   }
@@ -1240,7 +1254,7 @@ int server_open_socket(void)
   }
 
   if (bind(socklan, &addr.saddr, sockaddr_size(&addr)) < 0) {
-    log_error("Lan bind failed: %s", fc_strerror(fc_get_errno()));
+    log_error("Announcement socket binding failed: %s", fc_strerror(fc_get_errno()));
   }
 
 #ifndef IPV6_SUPPORT
@@ -1478,8 +1492,8 @@ static void send_lanserver_response(void)
 #endif
 
   /* Create a socket to broadcast to client. */
-  if ((socksend = socket(AF_INET,SOCK_DGRAM, 0)) < 0) {
-    log_error("socket failed: %s", fc_strerror(fc_get_errno()));
+  if ((socksend = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    log_error("Lan response socket failed: %s", fc_strerror(fc_get_errno()));
     return;
   }
 
@@ -1504,7 +1518,7 @@ static void send_lanserver_response(void)
 
   if (setsockopt(socksend, SOL_SOCKET, SO_BROADCAST, 
                  (const char*)&setting, sizeof(setting))) {
-    log_error("setsockopt failed: %s", fc_strerror(fc_get_errno()));
+    log_error("Lan response setsockopt failed: %s", fc_strerror(fc_get_errno()));
     return;
   }
 
