@@ -1032,7 +1032,7 @@ static void begin_phase(bool is_new_phase)
 static void end_phase(void)
 {
   log_debug("Endphase");
- 
+
   /* 
    * This empties the client Messages window; put this before
    * everything else below, since otherwise any messages from the
@@ -1441,6 +1441,17 @@ void start_game(void)
 **************************************************************************/
 void server_quit(void)
 {
+  if (server_state() == S_S_RUNNING) {
+    /* Quitting mid-game. */
+    phase_players_iterate(pplayer) {
+      CALL_PLR_AI_FUNC(phase_finished, pplayer, pplayer);
+      /* This has to be after all access to advisor data. */
+      /* We used to run this for ai players only, but data phase
+         is initialized for human players also. */
+      adv_data_phase_done(pplayer);
+    } phase_players_iterate_end;
+  }
+
   if (eot_timer != NULL) {
     timer_destroy(eot_timer);
   }
@@ -1470,6 +1481,7 @@ void server_quit(void)
   generator_free();
   close_connections_and_socket();
   rulesets_deinit();
+  ruleset_choices_free();
   timing_log_free();
   registry_module_close();
   fc_destroy_mutex(&game.server.mutexes.city_list);
@@ -2551,7 +2563,7 @@ static void srv_prepare(void)
 
   /* load a saved game */
   if ('\0' == srvarg.load_filename[0]
-   || !load_command(NULL, srvarg.load_filename, FALSE)) {
+      || !load_command(NULL, srvarg.load_filename, FALSE, TRUE)) {
     /* Rulesets are loaded on game initialization, but may be changed later
      * if /load or /rulesetdir is done. */
     load_rulesets(NULL, TRUE);
@@ -2559,7 +2571,7 @@ static void srv_prepare(void)
 
   maybe_automatic_meta_message(default_meta_message_string());
 
-  if(!(srvarg.metaserver_no_send)) {
+  if (!(srvarg.metaserver_no_send)) {
     log_normal(_("Sending info to metaserver <%s>."), meta_addr_port());
     /* Open socket for meta server */
     if (!server_open_meta()

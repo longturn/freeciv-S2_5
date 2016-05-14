@@ -1,4 +1,4 @@
-/********************************************************************** 
+/**********************************************************************
  Freeciv - Copyright (C) 1996 - A Kjeldberg, L Gregersen, P Unold
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3153,6 +3153,7 @@ static bool client_option_color_set(struct option *poption,
   } else {                                                                  \
     if (NULL == color) {                                                    \
       free((void *) color_tgt);                                             \
+      color_tgt = NULL;                                                     \
       changed = TRUE;                                                       \
     } else if (0 != strcmp(color_tgt, color)) {                             \
       free((void *) color_tgt);                                             \
@@ -5175,7 +5176,7 @@ void options_load(void)
 
   name = get_last_option_file_name(&allow_digital_boolean);
   if (!name) {
-    log_normal(_("Didn't find the option file."));
+    log_normal(_("Didn't find the option file. Creating a new one."));
     options_fully_initialized = TRUE;
     create_default_cma_presets();
     return;

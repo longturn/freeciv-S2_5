@@ -1091,7 +1091,9 @@ static int unquote_block(const char *const quoted_, void *dest,
   parsed = sscanf(quoted, "%d", &length);
   fc_assert_ret_val(1 == parsed, 0);
 
-  fc_assert_ret_val(length <= dest_length, 0);
+  if (length > dest_length) {
+    return 0;
+  }
   quoted = strchr(quoted, ':');
   fc_assert_ret_val(quoted != NULL, 0);
   quoted++;
@@ -2469,6 +2471,11 @@ static void sg_load_map(struct loaddata *loading)
   /* Check status and return if not OK (sg_success != TRUE). */
   sg_check_ret();
 
+  /* This defaults to TRUE even if map has not been generated. Also,
+   * old versions have also explicitly saved TRUE even in pre-game.
+   * We rely on that
+   *   1) scenario maps have it explicity right.
+   *   2) when map is actually generated, it re-initialize this to FALSE. */
   map.server.have_huts
     = secfile_lookup_bool_default(loading->file, TRUE, "map.have_huts");
 
@@ -2532,15 +2539,15 @@ static void sg_save_map(struct savedata *saving)
   /* Check status and return if not OK (sg_success != TRUE). */
   sg_check_ret();
 
+  if (map_is_empty()) {
+    /* No map. */
+    return;
+  }
+
   if (saving->scenario) {
     secfile_insert_bool(saving->file, map.server.have_huts, "map.have_huts");
   } else {
     secfile_insert_bool(saving->file, TRUE, "map.have_huts");
-  }
-
-  if (map_is_empty()) {
-    /* No map. */
-    return;
   }
 
   sg_save_map_tiles(saving);
@@ -5704,8 +5711,11 @@ static void sg_load_player_vision(struct loaddata *loading,
   sg_check_ret();
 
   if (!plr->is_alive) {
-    /* Reveal all for dead players. */
-    map_know_and_see_all(plr);
+    if (game.server.revealmap & REVEAL_MAP_DEAD
+        && player_list_size(team_members(plr->team)) == 1) {
+      /* Reveal all for dead players. */
+      map_know_and_see_all(plr);
+    }
   }
 
   if (!plr->is_alive

@@ -1,4 +1,4 @@
-/********************************************************************** 
+/**********************************************************************
  Freeciv - Copyright (C) 1996 - A Kjeldberg, L Gregersen, P Unold
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1049,10 +1049,6 @@ bool can_unit_do_activity_targeted(const struct unit *punit,
 /**************************************************************************
   Return TRUE if the unit can do the targeted activity at the given
   location.
-
-  Note that if you make changes here you should also change the code for
-  autosettlers in server/settler.c. The code there does not use this
-  function as it would be a major CPU hog.
 **************************************************************************/
 bool can_unit_do_activity_targeted_at(const struct unit *punit,
 				      enum unit_activity activity,
@@ -1821,9 +1817,9 @@ bool unit_being_aggressive(const struct unit *punit)
   if (tile_has_base_flag_for_unit(unit_tile(punit),
                                   unit_type(punit),
                                   BF_NOT_AGGRESSIVE)) {
-    return !is_unit_near_a_friendly_city (punit);
+    return !is_unit_near_a_friendly_city(punit);
   }
-  
+
   return TRUE;
 }
 
@@ -2170,7 +2166,12 @@ enum unit_upgrade_result unit_upgrade_test(const struct unit *punit,
     return UU_NOT_ENOUGH_ROOM;
   }
 
-  if (!can_exist_at_tile(to_unittype, unit_tile(punit))) {
+  if (punit->transporter != NULL) {
+    if (!can_unit_type_transport(unit_type(punit->transporter),
+                                 unit_class(punit))) {
+      return UU_UNSUITABLE_TRANSPORT;
+    }
+  } else if (!can_exist_at_tile(to_unittype, unit_tile(punit))) {
     /* The new unit type can't survive on this terrain. */
     return UU_NOT_TERRAIN;
   }
@@ -2263,6 +2264,14 @@ enum unit_upgrade_result unit_upgrade_info(const struct unit *punit,
                   "survive at this place."),
                 utype_name_translation(from_unittype),
                 utype_name_translation(to_unittype));
+    break;
+  case UU_UNSUITABLE_TRANSPORT:
+    fc_snprintf(buf, bufsz,
+                _("Upgrading this %s would result in a %s which its "
+                  "current transport, %s, could not transport."),
+                utype_name_translation(from_unittype),
+                utype_name_translation(to_unittype),
+                unit_name_translation(punit->transporter));
     break;
   }
 

@@ -284,7 +284,7 @@ gui_stub=no
 for gui in $(echo $clients | $SED 's/,/ /g') ; do
   if test "x$gui" = "xno" ; then
     client=no
-  elif test "x$gui" = "xauto" ; then
+  elif test "x$gui" = "xauto" || test "x$gui" = "xyes" ; then
     client=auto
   elif test "x$gui" = "xall" ; then
     client=all
@@ -877,7 +877,7 @@ if test "x$client" != "xno"; then
 
   dnl If client still "auto", error out since we couldn't select any of them
   if test "x$client" = "xauto" ; then
-    AC_MSG_ERROR([can not build any of the clients])
+    AC_MSG_ERROR([can not build any of the supported clients])
   fi
 fi
 
@@ -1267,7 +1267,7 @@ else
 fi
 CPPFLAGS="$CPPFLAGS -DFC_CONF_PATH=\"\\\"$FC_CONF_PATH\\\"\""
 CPPFLAGS="$CPPFLAGS -DDEFAULT_DATA_PATH=\"\\\"$DEFAULT_DATA_PATH\\\"\""
-CPPFLAGS="$CPPFLAGS -DDEFAULT_SAVES_PATH=\"\\\"$DEFAULT_SAVES_PATH\\\"\""
+CPPFLAGS="$CPPFLAGS -DDEFAULT_SAVE_PATH=\"\\\"$DEFAULT_SAVE_PATH\\\"\""
 CPPFLAGS="$CPPFLAGS -DDEFAULT_SCENARIO_PATH=\"\\\"$DEFAULT_SCENARIO_PATH\\\"\""
 
 dnl This has to be last library

@@ -1,4 +1,4 @@
-/********************************************************************** 
+/***********************************************************************
  Freeciv - Copyright (C) 1996 - A Kjeldberg, L Gregersen, P Unold
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,6 +78,8 @@ struct team_placement_state {
 #define SPECPQ_DATA_TYPE struct team_placement_state *
 #define SPECPQ_PRIORITY_TYPE long
 #include "specpq.h"
+
+static struct strvec *ruleset_choices = NULL;
 
 /****************************************************************************
   Get unit_type for given role character
@@ -437,7 +439,7 @@ void init_new_game(void)
 
   /* Convert the startposition hash table in a linked lists, as we mostly
    * need now to iterate it now. And then, we will be able to remove the
-   * assigned start postions one by one. */
+   * assigned start positions one by one. */
   impossible_list = startpos_list_new();
   targeted_list = startpos_list_new();
   flexible_list = startpos_list_new();
@@ -866,6 +868,11 @@ void send_game_info(struct conn_list *dest)
 
   ginfo = game.info;
 
+  /* Set values used by old clients (lacking "illness_ranges" capability). */
+  game.info.illness_base_factor_old = game.info.illness_base_factor;
+  game.info.illness_pollution_factor_old = game.info.illness_pollution_factor;
+  game.info.illness_trade_infection_old = game.info.illness_trade_infection;
+
   /* the following values are computed every
      time a packet_game_info packet is created */
 
@@ -885,8 +892,7 @@ void send_game_info(struct conn_list *dest)
 
   conn_list_iterate(dest, pconn) {
     send_packet_game_info(pconn, &ginfo);
-  }
-  conn_list_iterate_end;
+  } conn_list_iterate_end;
 }
 
 /**************************************************************************
@@ -1028,23 +1034,32 @@ const char *new_challenge_filename(struct connection *pc)
 static void send_ruleset_choices(struct connection *pc)
 {
   struct packet_ruleset_choices packet;
-  static struct strvec *rulesets = NULL;
   size_t i;
 
-  if (!rulesets) {
+  if (ruleset_choices == NULL) {
     /* This is only read once per server invocation.  Add a new ruleset
      * and you have to restart the server. */
-    rulesets = fileinfolist(get_data_dirs(), RULESET_SUFFIX);
+    ruleset_choices = fileinfolist(get_data_dirs(), RULESET_SUFFIX);
   }
 
-  packet.ruleset_count = MIN(MAX_NUM_RULESETS, strvec_size(rulesets));
+  packet.ruleset_count = MIN(MAX_NUM_RULESETS, strvec_size(ruleset_choices));
   for (i = 0; i < packet.ruleset_count; i++) {
-    sz_strlcpy(packet.rulesets[i], strvec_get(rulesets, i));
+    sz_strlcpy(packet.rulesets[i], strvec_get(ruleset_choices, i));
   }
 
   send_packet_ruleset_choices(pc, &packet);
 }
 
+/************************************************************************** 
+  Free list of ruleset choices.
+**************************************************************************/
+void ruleset_choices_free(void)
+{
+  if (ruleset_choices != NULL) {
+    strvec_destroy(ruleset_choices);
+    ruleset_choices = NULL;
+  }
+}
 
 /**************************************************************************** 
   Opens a file specified by the packet and compares the packet values with

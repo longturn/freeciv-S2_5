@@ -1,4 +1,4 @@
-/********************************************************************** 
+/***********************************************************************
  Freeciv - Copyright (C) 1996 - A Kjeldberg, L Gregersen, P Unold
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1106,7 +1106,7 @@ void handle_new_year(int year, int turn)
 {
   game.info.year = year;
   /*
-   * The turn was increased in handle_before_new_year()
+   * The turn was increased in handle_end_turn()
    */
   fc_assert(game.info.turn == turn);
   update_info_label();
@@ -1236,7 +1236,7 @@ void handle_end_turn(void)
   /*
    * The local idea of the game.info.turn is increased here since the
    * client will get unit updates (reset of move points for example)
-   * between handle_before_new_year() and handle_new_year(). These
+   * between handle_end_turn() and handle_new_year(). These
    * unit updates will look like they did take place in the old turn
    * which is incorrect. If we get the authoritative information about
    * the game.info.turn in handle_new_year() we will check it.
@@ -1895,11 +1895,10 @@ void handle_game_info(const struct packet_game_info *pinfo)
   bool boot_help;
   bool update_aifill_button = FALSE;
 
-
   if (game.info.aifill != pinfo->aifill) {
     update_aifill_button = TRUE;
   }
-  
+
   if (game.info.is_edit_mode != pinfo->is_edit_mode) {
     popdown_all_city_dialogs();
     /* Clears the current goto command. */
@@ -1907,6 +1906,13 @@ void handle_game_info(const struct packet_game_info *pinfo)
   }
 
   game.info = *pinfo;
+
+  if (!has_capability("illness_ranges", client.conn.capability)) {
+    /* Fill current values from the old-format values sent by older server. */
+    game.info.illness_base_factor = game.info.illness_base_factor_old;
+    game.info.illness_pollution_factor = game.info.illness_pollution_factor_old;
+    game.info.illness_trade_infection = game.info.illness_trade_infection_old;
+  }
 
   /* check the values! */
 #define VALIDATE(_count, _maximum, _string)                                 \
@@ -2984,6 +2990,9 @@ void handle_rulesets_ready(void)
   unit_type_iterate(ptype) {
     set_unit_type_caches(ptype);
   } unit_type_iterate_end;
+
+  /* Adjust editor for changed ruleset. */
+  editor_ruleset_changed();
 
   /* We are not going to crop any more sprites from big sprites, free them. */
   finish_loading_sprites(tileset);
