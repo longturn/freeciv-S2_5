@@ -1967,7 +1967,7 @@ void unit_enter_city(struct unit *punit, struct city *pcity, bool passenger)
     }
   }
 
-  steal_a_tech(pplayer, cplayer, A_UNSET);
+  /* steal_a_tech(pplayer, cplayer, A_UNSET); */
   send_player_info_c(pplayer, pplayer->connections);
 
   /* We transfer the city first so that it is in a consistent state when
