@@ -2006,6 +2006,14 @@ static struct setting settings[] = {
           NULL, NULL,
           GAME_MIN_DIPLCHANCE, GAME_MAX_DIPLCHANCE, GAME_DEFAULT_DIPLCHANCE)
 
+  GEN_INT("diplchance_steal", game.server.diplchance_steal,
+          SSET_RULES_FLEXIBLE, SSET_MILITARY, SSET_SITUATIONAL,
+          SSET_TO_CLIENT,
+          N_("Base chance for diplomats and spies to succeed in stealing tech"),
+          N_("The base chance of diplomats and spies to steal advances."),
+          NULL, NULL,
+          GAME_MIN_DIPLCHANCE_STEAL, GAME_MAX_DIPLCHANCE_STEAL, GAME_DEFAULT_DIPLCHANCE_STEAL)
+
   GEN_BOOL("spacerace", game.info.spacerace,
            SSET_RULES_FLEXIBLE, SSET_SCIENCE, SSET_VITAL, SSET_TO_CLIENT,
            N_("Whether to allow space race"),
