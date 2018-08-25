@@ -236,6 +236,18 @@ static const struct sset_val_name *topology_name(int topology_bit)
   return NULL;
 }
 
+/************************************************************************//**
+  Caravan bonus style setting names accessor.
+****************************************************************************/
+static const struct sset_val_name *caravanbonusstyle_name(int caravanbonus)
+{
+  switch (caravanbonus) {
+  NAME_CASE(CBS_CLASSIC, "CLASSIC", N_("Classic Freeciv"));
+  NAME_CASE(CBS_LOGARITHMIC, "LOGARITHMIC", N_("Log^2 N style"));
+  }
+  return NULL;
+}
+
 /****************************************************************************
   Generator setting names accessor.
 ****************************************************************************/
@@ -1757,6 +1769,17 @@ static struct setting settings[] = {
            N_("If turned off, trading cities in the diplomacy dialog "
               "is not allowed."), NULL, NULL,
            GAME_DEFAULT_TRADING_CITY)
+
+  GEN_ENUM("caravan_bonus_style", game.server.caravan_bonus_style,
+           SSET_RULES, SSET_ECONOMICS, SSET_RARE, SSET_TO_CLIENT,
+	   N_("Caravan bonus style"),
+           N_("The formula for the bonus when a caravan enters a city. "
+              "CLASSIC bonuses are proportional to distance and trade "
+              "of source and destination with multipliers for overseas and "
+              "international destinations. LOGARITHMIC bonuses are "
+              "proportional to log^2(distance + trade)."),
+           NULL, NULL, NULL, caravanbonusstyle_name,
+           GAME_DEFAULT_CARAVAN_BONUS_STYLE)
 
   GEN_INT("trademindist", game.info.trademindist,
           SSET_RULES, SSET_ECONOMICS, SSET_RARE, SSET_TO_CLIENT,

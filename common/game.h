@@ -114,6 +114,7 @@ struct civ_game {
       int autoupgrade_veteran_loss;
       enum barbarians_rate barbarianrate;
       int base_incite_cost;
+      int caravan_bonus_style;
       int civilwarsize;
       int conquercost;
       int contactturns;
@@ -522,6 +523,8 @@ extern struct civ_game game;
 #define GAME_DEFAULT_TRADING_TECH    TRUE
 #define GAME_DEFAULT_TRADING_GOLD    TRUE
 #define GAME_DEFAULT_TRADING_CITY    TRUE
+
+#define GAME_DEFAULT_CARAVAN_BONUS_STYLE CBS_CLASSIC
 
 #define GAME_DEFAULT_TRADEMINDIST    9
 #define GAME_MIN_TRADEMINDIST        1

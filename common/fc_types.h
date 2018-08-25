@@ -413,6 +413,14 @@ BV_DEFINE(bv_startpos_nations, MAX_NUM_STARTPOS_NATIONS);
 #define SPECENUM_VALUE3 AIRLIFTING_UNLIMITED_DEST
 #include "specenum_gen.h"
 
+/* Used in the network protocol. */
+#define SPECENUM_NAME caravan_bonus_style
+#define SPECENUM_VALUE0 CBS_CLASSIC
+#define SPECENUM_VALUE0NAME "Classic"
+#define SPECENUM_VALUE1 CBS_LOGARITHMIC
+#define SPECENUM_VALUE1NAME "Logarithmic"
+#include "specenum_gen.h"
+
 #define SPECENUM_NAME reveal_map
 #define SPECENUM_BITWISE
 /* Reveal only the area around the first units at the beginning. */
