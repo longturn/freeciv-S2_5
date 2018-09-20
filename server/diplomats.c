@@ -793,7 +793,7 @@ void diplomat_incite(struct player *pplayer, struct unit *pdiplomat,
   nullify_prechange_production(pcity);
 
   /* You get a technology advance, too! */
-  steal_a_tech (pplayer, cplayer, A_UNSET);
+  /* steal_a_tech (pplayer, cplayer, A_UNSET); */
 
   /* this may cause a diplomatic incident */
   maybe_cause_incident(DIPLOMAT_INCITE, pplayer, cplayer, ctile, clink);
